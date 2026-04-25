@@ -1,0 +1,12 @@
+{
+  "name": "hebstr",
+  "owner": {
+    "name": "hebstr",
+    "email": "ju.diez@protonmail.com"
+  },
+  "metadata": {
+    "description": "Claude Code skills and plugins by hebstr.",
+    "version": "0.1.0"
+  },
+  "plugins": []
+}
