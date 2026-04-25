@@ -27,6 +27,8 @@ The set of available reviewers is **discovered at runtime**, not hardcoded. This
 python3 "${CLAUDE_SKILL_DIR}/scripts/scan-reviewers.py"
 ```
 
+Note: `${CLAUDE_SKILL_DIR}` is the absolute path to this skill's directory. If your runtime does not export it as an environment variable, substitute it with the path announced by Claude Code at the top of the skill prompt (`Base directory for this skill: <path>`).
+
 It returns JSON with `candidates`: each candidate has `name`, `category` (`code` / `skill-tool` / `unknown`), `path`, and `description_excerpt`. The script scans active skills under `~/.claude/skills/` and the install paths listed in `~/.claude/plugins/installed_plugins.json`, filters by name+description heuristics, and excludes self-references (`review-walkthrough`, `blindspot-review`, etc.). If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path) — do not invent names.
 
 **Step 2 — validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`). If valid, use it as-is and skip steps 3–4. If invalid, list the scanned candidates back to the user and ask them to pick one.
