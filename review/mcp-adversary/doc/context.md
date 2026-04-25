@@ -50,7 +50,7 @@ Full source with focus constraint in the prompt. Reason: resource lifecycle and 
 
 ## Bias mitigation (same as skill-adversary)
 
-1. Context isolation — agents receive only extracted metadata/code
+1. Context isolation — agents receive only file paths and Read the source files themselves; cognitive separation across the three dimensions is enforced by agent instructions, not by pre-filtering input
 2. Persona forcing — 4 user personas for discoverability testing
 3. Cross-model critique — Opus ↔ Sonnet
 
