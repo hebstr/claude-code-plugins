@@ -21,6 +21,15 @@
         "./review/skill-adversary",
         "./review/mcp-adversary"
       ]
+    },
+    {
+      "name": "workflow",
+      "description": "Skills for project workflow automation — file consistency sweeps and cross-repo synchronization.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./workflow/sync-files"
+      ]
     }
   ]
 }
