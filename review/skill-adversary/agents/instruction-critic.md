@@ -44,16 +44,16 @@ Strategy — think about:
 
 ### 4. Cross-file coherence
 
-If `<components>` are provided alongside the `<skill>`, check for consistency between the SKILL.md and its auxiliary files (agents, docs, templates, etc.).
+If component files are listed alongside the SKILL.md (auxiliary files like agents, docs, templates), Read them and check for consistency between the SKILL.md and these files.
 
 Red flags:
 - SKILL.md describes a behavior that an agent file contradicts or overrides
 - An agent file assumes inputs or context not mentioned in the SKILL.md
 - Terminology mismatch: the SKILL.md uses one term, an agent file uses another for the same concept
 - An agent file references steps, tools, or output formats not defined anywhere in the SKILL.md
-- The SKILL.md delegates to an agent file that doesn't exist in the components, or vice versa
+- The SKILL.md delegates to an agent file that is not in the listed component paths, or a listed component is not referenced anywhere in the SKILL.md
 
-If no `<components>` are provided, skip this section entirely.
+If no component files are listed, skip this section entirely.
 
 ### 5. Assumed context
 
