@@ -7,7 +7,7 @@ Skills extend Claude Code with specialized workflows that activate automatically
 Add the marketplace, then install plugins individually:
 
 ```bash
-claude plugin marketplace add hebstr/claude-code-hebstr
+claude plugin marketplace add hebstr/claude-code-plugins
 claude plugin install review@hebstr
 claude plugin install workflow@hebstr
 ```

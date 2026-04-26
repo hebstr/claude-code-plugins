@@ -9,7 +9,7 @@
 - `skill-adversary` — `output-fuzzer` sub-agent deferred to V2; context doc updated to reflect the two-agent layout (`trigger-attacker`, `instruction-critic`) and point to `doc/v2.md` for the third axis.
 
 #### Removed
-- `litrev` plugin reverted to standalone repo (`github.com:hebstr/litrev`). Migration into the `hebstr` marketplace was never validated runtime; rolled back to keep stacks (markdown skills vs Python MCP) and audiences (Claude Code devs vs medical researchers) separated.
+- `litrev` plugin reverted to standalone repo (`github.com:hebstr/claude-code-litrev`). Migration into the `hebstr` marketplace was never validated runtime; rolled back to keep stacks (markdown skills vs Python MCP) and audiences (Claude Code devs vs medical researchers) separated.
 
 ### `workflow`
 
@@ -39,4 +39,4 @@ Initial public release.
 - Plugin scaffolding with 1 skill bundled.
 - `sync-files` — scan files for staleness relative to recent changes and propose targeted updates. `--deep` mode runs cross-repo semantic consistency scan with parallel agents. User-invocable only.
 
-[0.1.0]: https://github.com/hebstr/claude-code-hebstr/releases/tag/v0.1.0
+[0.1.0]: https://github.com/hebstr/claude-code-plugins/releases/tag/v0.1.0
