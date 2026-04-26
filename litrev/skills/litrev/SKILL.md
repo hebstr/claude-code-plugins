@@ -548,9 +548,9 @@ Populate each section from:
 
 ### Step 9b — Update memory with pipeline learnings
 
-After writing `pipeline_log.md`, automatically check whether the run produced observations that are **not already documented** in the litrev memory files. Read these files to check for duplicates:
-- `~/.claude/projects/-home-julien--claude-skills-litrev/memory/feedback_litrev_extraction_patterns.md`
-- `~/.claude/projects/-home-julien--claude-skills-litrev/memory/project_mcp_bugs_*.md`
+After writing `pipeline_log.md`, automatically check whether the run produced observations that are **not already documented** in the litrev memory files. Memory accumulates under the current project context — locate the relevant files via glob:
+- `~/.claude/projects/*/memory/feedback_litrev_extraction_patterns.md`
+- `~/.claude/projects/*/memory/project_mcp_bugs_*.md`
 
 **New MCP bugs**: if the MCP Tool Issues section of `pipeline_log.md` contains a bug not already documented in `project_mcp_bugs_*.md`, append it to the existing file or create a new one if no file exists.
 

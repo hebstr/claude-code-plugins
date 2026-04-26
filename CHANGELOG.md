@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### `litrev` 0.1.0
+
+#### Added
+- Plugin imported from standalone marketplace (`github.com:hebstr/litrev`, archived). 5 skills + bundled MCP server (`litrev-mcp`, Python uv).
+- `litrev` — orchestrator skill for systematic reviews, scoping reviews, meta-analyses, and evidence syntheses (PubMed/MEDLINE, Semantic Scholar, OpenAlex; PRISMA 2020, Cochrane, GRADE).
+- `litrev-search` — multi-database search aggregation with relevance gate.
+- `litrev-screen` — title/abstract/full-text screening with structured screening log and PRISMA counts.
+- `litrev-extract` — claim extraction (regex + LLM enrichment), quality assessment, theme assignment.
+- `litrev-synthesize` — constrained thematic synthesis from extracted claims with Pandoc citations.
+
+#### Changed
+- `.mcp.json` switched to `${CLAUDE_PLUGIN_ROOT}/mcp` for cache-versioned install path resolution.
+
 ## [0.1.0] - 2026-04-26
 
 Initial public release.

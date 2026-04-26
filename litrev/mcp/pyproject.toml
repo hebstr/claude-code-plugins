@@ -9,6 +9,10 @@ dependencies = [
     "pdftext>=0.6",
 ]
 
+[project.urls]
+Homepage = "https://github.com/hebstr/claude-code-hebstr"
+Repository = "https://github.com/hebstr/claude-code-hebstr"
+
 [project.scripts]
 litrev-mcp = "litrev_mcp.server:main"
 

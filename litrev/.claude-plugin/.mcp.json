@@ -2,7 +2,7 @@
   "mcpServers": {
     "litrev-mcp": {
       "command": "uv",
-      "args": ["run", "--directory", "/home/julien/.claude/plugins/marketplaces/litrev/mcp", "litrev-mcp"],
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}/mcp", "litrev-mcp"],
       "env": {
         "S2_API_KEY": "${S2_API_KEY}",
         "NCBI_API_KEY": "${NCBI_API_KEY}",

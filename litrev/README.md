@@ -88,31 +88,33 @@ Planning → Search → Screen → Snowball (optional) → Extract → Synthesiz
 - Python >= 3.11 with [uv](https://docs.astral.sh/uv/)
 - Internet access (PubMed, Semantic Scholar, OpenAlex, CrossRef, doi.org APIs)
 
-### Install the MCP server
+### Install via plugin
 
 ```bash
-cd ~/.claude/plugins/marketplaces/litrev/mcp
-uv sync
+claude plugin marketplace add hebstr/claude-code-hebstr
+claude plugin install litrev@hebstr
 ```
 
-The MCP server is configured in `.mcp.json` at the plugin root (`~/.claude/plugins/marketplaces/litrev/.mcp.json`):
+The MCP server (`litrev-mcp`) is auto-registered via the bundled `.claude-plugin/.mcp.json`, which uses `${CLAUDE_PLUGIN_ROOT}/mcp` to resolve the install path:
 
 ```json
 {
   "mcpServers": {
     "litrev-mcp": {
       "command": "uv",
-      "args": ["run", "--directory", "./mcp", "litrev-mcp"],
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}/mcp", "litrev-mcp"],
       "env": {
-        "LITREV_EMAIL": "you@example.com",
-        "NCBI_API_KEY": "your-key-here",
-        "S2_API_KEY": "your-key-here"
+        "LITREV_EMAIL": "${LITREV_EMAIL}",
+        "NCBI_API_KEY": "${NCBI_API_KEY}",
+        "S2_API_KEY": "${S2_API_KEY}"
       },
       "timeout": 120
     }
   }
 }
 ```
+
+`uv` regenerates the project venv on first invocation. No manual `uv sync` step required.
 
 ### Optional: environment variables
 
