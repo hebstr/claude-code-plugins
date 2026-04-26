@@ -10,7 +10,6 @@ Add the marketplace, then install plugins individually:
 claude plugin marketplace add hebstr/claude-code-hebstr
 claude plugin install review@hebstr
 claude plugin install workflow@hebstr
-claude plugin install litrev@hebstr
 ```
 
 ## Plugins
@@ -34,20 +33,6 @@ Project workflow automation — file consistency sweeps and cross-repo synchroni
 | Skill | Purpose |
 |---|---|
 | [`sync-files`](./workflow/sync-files/) | Scan all files, identify ones that are stale relative to recent changes, and update them. `--deep` mode runs a cross-repo semantic consistency scan with parallel agents |
-
-### `litrev`
-
-Systematic literature reviews for medical and clinical research — search, screen, extract, synthesize. Bundles a Python MCP server (`litrev-mcp`) and 5 skills covering the full PRISMA pipeline.
-
-| Skill | Purpose |
-|---|---|
-| [`litrev`](./litrev/skills/litrev/) | Orchestrator for systematic, scoping, narrative, rapid, and meta-analytic reviews — sequencing, gates, double audit |
-| [`litrev-search`](./litrev/skills/litrev-search/) | Multi-database search aggregation (PubMed, Semantic Scholar, OpenAlex) with relevance gate |
-| [`litrev-screen`](./litrev/skills/litrev-screen/) | Title/abstract/full-text screening with structured screening log and PRISMA counts |
-| [`litrev-extract`](./litrev/skills/litrev-extract/) | Claim extraction (regex + LLM enrichment), quality assessment, theme assignment |
-| [`litrev-synthesize`](./litrev/skills/litrev-synthesize/) | Constrained thematic synthesis from extracted claims with Pandoc citations |
-
-The MCP server is bundled at [`litrev/mcp/`](./litrev/mcp/) and provides 15 deterministic tools (database APIs, deduplication, claim verification, BibTeX generation). It runs via `uv` and is auto-registered when the plugin is installed.
 
 ## Requirements
 

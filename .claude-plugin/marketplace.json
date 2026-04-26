@@ -31,31 +31,6 @@
       "skills": [
         "./workflow/sync-files"
       ]
-    },
-    {
-      "name": "litrev",
-      "version": "0.1.0",
-      "description": "Conduct systematic reviews, scoping reviews, meta-analyses, and evidence syntheses for medical, clinical, and health research. Bundles a Python MCP server (litrev-mcp) and 5 skills covering search, screening, extraction, and synthesis.",
-      "source": "./litrev",
-      "strict": false,
-      "category": "research",
-      "license": "MIT",
-      "keywords": [
-        "literature-review",
-        "systematic-review",
-        "meta-analysis",
-        "evidence-synthesis",
-        "medical-research",
-        "pubmed",
-        "prisma"
-      ],
-      "skills": [
-        "./skills/litrev",
-        "./skills/litrev-search",
-        "./skills/litrev-screen",
-        "./skills/litrev-extract",
-        "./skills/litrev-synthesize"
-      ]
     }
   ]
 }
