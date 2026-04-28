@@ -13,6 +13,9 @@
 
 ### `workflow`
 
+#### Added
+- `write` — strips AI writing patterns from prose and rewrites it to sound human. Routes between French and English references based on the text being edited (`references/write-fr.md` ~900 lines, `references/write-en.md`). Includes a bilingual review mode (FR↔EN typography, faux amis, calques, allowlist of preserved technical anglicisms) and a release-note template mode. Migrated from a personal fork of `waza/write` after substantial divergence (FR reference, bilingual mode, custom allowlist).
+
 #### Changed
 - `sync-files` renamed to `sync`. Cross-repo semantic consistency scan with parallel agents (formerly opt-in via `--deep`) is now the default and only mode; `--deep` flag removed. Invocation is now `/sync`.
 

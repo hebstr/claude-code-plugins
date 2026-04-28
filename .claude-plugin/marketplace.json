@@ -24,12 +24,13 @@
     },
     {
       "name": "workflow",
-      "version": "0.1.0",
-      "description": "Skills for project workflow automation — file consistency sweeps and cross-repo synchronization.",
+      "version": "0.2.0",
+      "description": "Skills for project workflow automation — file consistency sweeps, cross-repo synchronization, and prose editing.",
       "source": "./",
       "strict": false,
       "skills": [
-        "./workflow/sync"
+        "./workflow/sync",
+        "./workflow/write"
       ]
     }
   ]
