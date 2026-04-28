@@ -1,13 +1,11 @@
 ---
 name: write
-description: "Strips AI writing patterns and rewrites prose to sound natural in English or French. Activates when the user asks to 'draft', 'edit text', 'proofread', 'polish', 'rewrite', 'sound natural', or in French 'écris', 'rédige', 'relis', 'corrige', 'polis', 'dégraisse', 'retravaille'. Only on explicit writing or editing requests. Not for code comments, commit messages, or inline docs."
+description: "Invoke ONLY when the user explicitly types `/workflow:write` — do not auto-trigger on mentions of 'draft', 'edit', 'proofread', 'polish', 'rewrite', 'sound natural', or French equivalents ('écris', 'rédige', 'relis', 'corrige', 'polis', 'dégraisse', 'retravaille'). Strips AI writing patterns and rewrites prose to sound natural in English or French. Not for code comments, commit messages, or inline docs."
 metadata:
   version: "3.24.0-fr"
 ---
 
 # Write: Cut the AI Taste
-
-Prefix your first line with 🥷 inline, not as its own paragraph.
 
 Strip AI patterns from prose and rewrite it to sound human. Do not improve vocabulary; remove the performance of improvement.
 
@@ -15,28 +13,29 @@ Strip AI patterns from prose and rewrite it to sound human. Do not improve vocab
 
 1. **Text present?** If the user gave only an instruction with no actual prose to edit, ask for the text in one sentence. Do not proceed.
 2. **Audience locked?** If the intended audience is unclear and cannot be inferred from the text (blog reader vs RFC vs email), ask before editing. Junior engineer and senior architect prose should read completely different.
-3. **Language detected from the text being edited**, not the user's command:
+3. **Reference file selection: language detected from the text being edited**, not the user's command. (Mode selection is separate — see Bilingual Review Mode for command-keyword triggers.)
    - Contains French (accented chars éèêëàâäîïôöùûüÿç + common French function words: le/la/les/des/un/une/et/est/dans/pour/avec/qui/que/ne/pas/sont/aux/cette/ces) → load `references/write-fr.md`
    - Otherwise → load `references/write-en.md`
 
    When the text mixes French and English (e.g. French prose with English code identifiers, or a bilingual doc), French wins if the running prose is in French. English code, terms, and inline tokens inside French prose do not flip the routing. Anglicisms idiomatic to French technical prose (framework, deploy, debug, push, ship, refactor, etc.) are part of French and do not flip the routing.
 
-Read the loaded reference file. Then edit. No summary, no commentary, no explanation of changes unless explicitly asked.
+Read the loaded reference file in full before editing. If a single `Read` call hits the token limit (write-fr.md is large enough to trigger this), paginate via `offset`/`limit` until the file is fully read — do not proceed on a partial read. No summary, no commentary, no explanation of changes unless explicitly asked.
 
 ## Hard Rules
 
 - **Meaning first, style second.** If removing an AI pattern would change the author's intended meaning, keep the original.
-- **No silent restructuring.** Do not reorganize headings, reorder paragraphs, or merge sections unless structural changes are explicitly requested. Edit in place.
+- **No silent restructuring at the document level.** Do not reorganize headings, reorder paragraphs, or merge top-level sections unless structural changes are explicitly requested. Register-level reformatting within a block (e.g. list → prose conversion per the reference files) is in scope.
 - **Stop after output.** Deliver the rewritten text. Do not append a list of changes, a justification, or a closer.
+- **Code passes through.** Fenced code blocks, inline backticks, file paths, command lines, and identifiers (variable names, function names, options) are data, not prose. Do not rewrite their content. Edit only the prose around them.
 
 ## Bilingual Review Mode (FR ↔ EN)
 
-Activate when: mixed French/English text, "bilingual consistency", "release notes", "version FR/EN", "traduction parallèle".
+Within an explicit `/workflow:write` invocation, switch to this mode when the input is mixed French/English text or the user mentions "bilingual consistency", "release notes", "version FR/EN", or "traduction parallèle". These are mode selectors, not invocation triggers — the skill itself only fires on `/workflow:write`.
 
 **French typography** (Lexique IN, Lacroux ; full rules in `references/write-fr.md`):
 - Non-breaking space before `:`, `;`, `!`, `?`, `»`; after `«`. Absent in EN, so do not propagate EN spacing into FR.
 - Quotation marks: `« »` in FR with non-breaking space inside, `" "` in EN. Do not leave `" "` in FR prose.
-- No em-dash (—) or en-dash (–) as internal punctuation in FR. They are EN/DE typography. EN keeps em-dashes. Convert to commas, colons, parentheses, or restructure when porting EN to FR.
+- No em-dash (—) or en-dash (–) as internal punctuation in either language. EN/DE typography accepts them, but `references/write-en.md` and `references/write-fr.md` both remove them as an AI register tell. Convert to commas, colons, parentheses, or restructure.
 - Capitales accentuées obligatoires (État, École). Title case is EN-only ; FR titles capitalise only the first word + proper nouns.
 - Decimals: comma in FR (`3,14`), period in EN (`3.14`). Thousands: thin non-breaking space in FR, comma in EN.
 
@@ -66,18 +65,8 @@ Activate when: mixed French/English text, "bilingual consistency", "release note
 
 **Translation-loss vs structural asymmetry.** When paragraph length diverges, distinguish two cases. *Translation-loss* : the translated paragraph genuinely says less (a qualifier, a clause, a fact is missing). Flag and propose restoration. *Structural asymmetry* : the content is preserved elsewhere on the page (bullet-list, sibling section, sidebar) and the prose paragraph deliberately stops earlier in one language. Editorial choice — do not request restoring the cut content. Test : grep the missing facts in the rest of the page before flagging. Marketing landing pages and product recaps routinely move feature lists from prose into bullets in one language only ; treat as asymmetry, not loss.
 
-## Release Note Template Mode
-
-Activate when: "release", "changelog", "version", "release notes"
-
-Generate from commit messages:
-- **Breaking Changes**
-- **New Features**
-- **Fixes & Improvements**
-- **Deprecations**
-
-Format: tw93/Mole style (numbered list, bold label, one sentence on user effect, FR↔EN if a bilingual release note is requested).
+**Output format for this mode.** Return both edited versions in their original order (FR then EN, or EN then FR), separated by a horizontal rule. Parity issues that require author judgment (faux amis, translation-loss, length divergence > 25%) go inline as `[FR↔EN: brief note]` next to the affected sentence. No trailing summary, no separate "Issues" section.
 
 ## Output
 
-Return only the edited prose. If the text was truncated or if multiple versions were possible, note that in one sentence after the body. Otherwise, no wrapper, no preamble, no postscript.
+Return only the edited prose. No wrapper, no preamble, no postscript.

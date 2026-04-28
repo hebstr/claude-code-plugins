@@ -178,20 +178,6 @@ Examples, not exhaustive -- any construction that performs insight rather than d
 - Any "In conclusion" or "To sum up"? Cut it.
 - Any emoji? Remove it.
 
-### Scoring
-
-Rate 1-10 on each dimension:
-
-| Dimension | Question |
-|-----------|----------|
-| Directness | Statements or announcements? |
-| Rhythm | Varied or metronomic? |
-| Trust | Respects reader intelligence? |
-| Authenticity | Sounds human? |
-| Density | Anything cuttable? |
-
-Below 35/50: revise.
-
 ---
 
 **Bottom line: varied, imperfect, specific. Any single trope used once may be fine. The problem is when multiple appear together or one repeats.**
