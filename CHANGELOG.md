@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-04-30
+
+### `workflow`
+
+#### Added
+
+- `continue`: flush durable facts to memory, update `.claude/PLAN.md`, and print a minimal continuation prompt. No handoff document is written — PLAN.md and memory are the authoritative stores. Explicit-invocation only (`/workflow:continue`).
+
 ## [0.2.0] - 2026-04-30
 
 ### `workflow`
@@ -33,5 +41,6 @@ Initial public release.
 #### Added
 - `sync-files`: scan files for staleness relative to recent changes and propose targeted updates. `--deep` mode runs cross-repo semantic consistency scan with parallel agents. User-invocable only.
 
+[0.3.0]: https://github.com/hebstr/claude-code-plugins/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/hebstr/claude-code-plugins/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hebstr/claude-code-plugins/releases/tag/v0.1.0

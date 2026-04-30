@@ -31,12 +31,13 @@ Code, skill, and MCP review workflows: orchestrated walkthroughs, full-project a
 
 ### `workflow`
 
-Project workflow automation: file consistency sweeps, cross-repo synchronization, and prose editing.
+Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, and session handoffs.
 
 | Skill | Purpose |
 |---|---|
 | [`sync`](./workflow/sync/) | Scan all files, identify ones that are stale relative to recent changes, and update them. Always runs a cross-repo semantic consistency scan with parallel agents |
 | [`write`](./workflow/write/) | Strip AI writing patterns from prose and rewrite it to sound human. Routes to a French or English reference based on the text being edited. Includes a bilingual review mode (FR↔EN parity, typography, faux amis) |
+| [`continue`](./workflow/continue/) | Flush durable facts to memory, update `.claude/PLAN.md`, and print a minimal continuation prompt. No handoff document is written — PLAN.md and memory are the authoritative stores |
 
 ## Requirements
 
