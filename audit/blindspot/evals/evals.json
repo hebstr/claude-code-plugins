@@ -1,9 +1,9 @@
 {
-  "skill_name": "blindspot-review",
+  "skill_name": "blindspot",
   "evals": [
     {
       "id": 1,
-      "prompt": "/blindspot-review skill-adversary ~/.claude/skills/skill-adversary/",
+      "prompt": "/blindspot ~/.claude/skills/skill-adversary/ --reviewer skill-adversary",
       "expected_output": "Detect strong circularity (path overlap + model family overlap). Attempt OpenRouter cross-model judge if OPENROUTER_API_KEY is set, fallback with warning if not. Report includes circularity assessment and transparency block.",
       "files": [],
       "expectations": [
@@ -61,7 +61,7 @@
       "expected_output": "Should NOT trigger. Normal skill-adversary invocation without circularity concern.",
       "files": [],
       "expectations": [
-        "blindspot-review does NOT trigger"
+        "blindspot does NOT trigger"
       ]
     },
     {
@@ -70,7 +70,7 @@
       "expected_output": "Should NOT trigger. General PR review request.",
       "files": [],
       "expectations": [
-        "blindspot-review does NOT trigger"
+        "blindspot does NOT trigger"
       ]
     },
     {
@@ -79,7 +79,7 @@
       "expected_output": "Should NOT trigger. Methodology question, not an audit request.",
       "files": [],
       "expectations": [
-        "blindspot-review does NOT trigger"
+        "blindspot does NOT trigger"
       ]
     },
     {
@@ -88,7 +88,7 @@
       "expected_output": "Should NOT trigger. Full-review on a generic project, no circularity concern.",
       "files": [],
       "expectations": [
-        "blindspot-review does NOT trigger"
+        "blindspot does NOT trigger"
       ]
     }
   ]

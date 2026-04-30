@@ -1,6 +1,6 @@
 # Cross-Model Judge
 
-External-model audit agent for blindspot-review. Routes a structured audit prompt to a
+External-model audit agent for blindspot. Routes a structured audit prompt to a
 non-Claude model via OpenRouter.
 
 ## Task

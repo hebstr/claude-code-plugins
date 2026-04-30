@@ -8,27 +8,27 @@ Add the marketplace, then install plugins individually:
 
 ```bash
 claude plugin marketplace add hebstr/claude-code-plugins
-claude plugin install review@hebstr
+claude plugin install audit@hebstr
 claude plugin install workflow@hebstr
 ```
 
 ## Plugins
 
-### `review`
+### `audit`
 
-Code, skill, and MCP review workflows — orchestrated walkthroughs, full-project audits, adversarial critique, and circularity-aware cross-model review.
+Code, skill, and MCP review workflows: orchestrated walkthroughs, full-project audits, adversarial critique, and circularity-aware cross-model review.
 
 | Skill | Purpose |
 |---|---|
-| [`review-walkthrough`](./review/review-walkthrough/) | Interactive, point-by-point walkthrough of any review report — re-evaluates findings, proposes fixes, checks impacted files for regressions |
-| [`full-review`](./review/full-review/) | Full-coverage project review with parallel specialist agents (architecture, quality, tests, docs), consolidated into a single deduplicated report |
-| [`blindspot-review`](./review/blindspot-review/) | Circularity-aware orchestrator that detects when a reviewer shares its target's codebase or model family, then injects cross-model judging via OpenRouter |
-| [`skill-adversary`](./review/skill-adversary/) | Adversarial critic for Claude Code skills — finds trigger edge cases, instruction ambiguities, cross-file coherence issues, and gaps |
-| [`mcp-adversary`](./review/mcp-adversary/) | Adversarial critic for MCP servers — finds inter-tool discrimination issues, schema anti-patterns, semantic drift, and undocumented workflow dependencies |
+| [`walkthrough`](./audit/walkthrough/) | Interactive, point-by-point walkthrough of any review report: re-evaluates findings, proposes fixes, checks impacted files for regressions |
+| [`sweep`](./audit/sweep/) | Full-coverage project review with parallel specialist agents (architecture, quality, tests, docs), consolidated into a single deduplicated report |
+| [`blindspot`](./audit/blindspot/) | Circularity-aware orchestrator that detects when a reviewer shares its target's codebase or model family, then injects cross-model judging via OpenRouter |
+| [`skill-adversary`](./audit/skill-adversary/) | Adversarial critic for Claude Code skills: finds trigger edge cases, instruction ambiguities, cross-file coherence issues, and gaps |
+| [`mcp-adversary`](./audit/mcp-adversary/) | Adversarial critic for MCP servers: finds inter-tool discrimination issues, schema anti-patterns, semantic drift, and undocumented workflow dependencies |
 
 ### `workflow`
 
-Project workflow automation — file consistency sweeps, cross-repo synchronization, and prose editing.
+Project workflow automation: file consistency sweeps, cross-repo synchronization, and prose editing.
 
 | Skill | Purpose |
 |---|---|

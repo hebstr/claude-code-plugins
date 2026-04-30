@@ -1,14 +1,14 @@
 ---
-name: blindspot-review
+name: blindspot
 disable-model-invocation: true
 description: >
   Circularity-aware orchestrator for audit skills. Detects when an audit skill (skill-adversary,
-  mcp-adversary, full-review, critical-code-reviewer) is about to review an artifact that shares
+  mcp-adversary, sweep, critical-code-reviewer) is about to review an artifact that shares
   its own codebase, prompts, or model family — then injects cross-model judging and transparency
   countermeasures via OpenRouter.
   This is an EXPLICIT-INVOCATION skill: it does not auto-trigger from implicit context.
-  Users invoke it directly via "/blindspot-review" or by name ("lance blindspot", "blindspot review").
-  Trigger on: "/blindspot-review", "blindspot review", "circular review", "review circulaire",
+  Users invoke it directly via "/blindspot" or by name ("lance blindspot", "blindspot review").
+  Trigger on: "/blindspot", "blindspot review", "circular review", "review circulaire",
   "self-review check", "audit avec blindspot", "lance blindspot",
   "review [skill-name] with [skill-name]" (same skill twice),
   "review this skill with skill-adversary" (when target is a Claude Code skill),
@@ -18,11 +18,11 @@ description: >
   Also triggers when another audit skill is invoked and the user asks to "check for circularity",
   "add a second opinion", or "get an external judge".
   EXCLUSIONS — do NOT trigger on: general code review, PR review, requests to simply run
-  skill-adversary/mcp-adversary/full-review without circularity concern, or requests about
+  skill-adversary/mcp-adversary/sweep without circularity concern, or requests about
   LLM evaluation methodology in general.
 ---
 
-# blindspot-review
+# blindspot
 
 Orchestrates circularity-aware auditing. When an audit skill must review an artifact that shares
 its own base (code, prompts, model family), this skill detects the conflict and injects
@@ -33,13 +33,13 @@ countermeasures: cross-model judging via OpenRouter, and a transparency block in
 ## Invocation
 
 ```
-/blindspot-review <target-path> [--reviewer <audit-skill>]
+/blindspot <target-path> [--reviewer <audit-skill>]
 ```
 
 - `<target-path>` (positional, required): path to the artifact being reviewed
-- `--reviewer <audit-skill>` (flag, optional): the audit skill to run. Default: `critical-code-reviewer`. Supported: `skill-adversary`, `mcp-adversary`, `full-review`, `critical-code-reviewer`, or any review skill.
+- `--reviewer <audit-skill>` (flag, optional): the audit skill to run. Default: `critical-code-reviewer`. Supported: `skill-adversary`, `mcp-adversary`, `sweep`, `critical-code-reviewer`, or any review skill.
 
-This syntax is harmonized with `/review-walkthrough` so that chaining the two is frictionless: same positional `<target>` first, same `--reviewer` flag, same default reviewer.
+This syntax is harmonized with `/walkthrough` so that chaining the two is frictionless: same positional `<target>` first, same `--reviewer` flag, same default reviewer.
 
 If invoked without `<target-path>`, ask the user for it. If `--reviewer` is omitted, default to `critical-code-reviewer` silently.
 
@@ -49,7 +49,7 @@ Before proceeding, validate `<target-path>`:
 1. Resolve it to an absolute path
 2. Verify it exists and contains readable files
 3. Reject paths outside `~/.claude/` and the current working directory tree — report the error and stop
-4. Reject `--reviewer blindspot-review` — self-invocation would create infinite recursion. Report the error and suggest using a different audit skill (e.g., `--reviewer skill-adversary`)
+4. Reject `--reviewer blindspot` — self-invocation would create infinite recursion. Report the error and suggest using a different audit skill (e.g., `--reviewer skill-adversary`)
 
 ## Phase 0 — Circularity Detection
 
@@ -62,9 +62,9 @@ Check if `<target-path>` is within or overlaps with the audit skill's own direct
 
 | Audit skill | Skill directory |
 |------------|----------------|
-| skill-adversary | `${CLAUDE_PLUGIN_ROOT}/review/skill-adversary/` |
-| mcp-adversary | `${CLAUDE_PLUGIN_ROOT}/review/mcp-adversary/` |
-| full-review | `${CLAUDE_PLUGIN_ROOT}/review/full-review/` |
+| skill-adversary | `${CLAUDE_PLUGIN_ROOT}/audit/skill-adversary/` |
+| mcp-adversary | `${CLAUDE_PLUGIN_ROOT}/audit/mcp-adversary/` |
+| sweep | `${CLAUDE_PLUGIN_ROOT}/audit/sweep/` |
 | critical-code-reviewer | Installed as a Posit skill — check if target is a Claude Code skill |
 | Other | Compare target path against the skill's installation path |
 
@@ -125,7 +125,7 @@ Spawn the **cross-model-judge** agent (see agents/cross-model-judge.md) in **for
 
 - `TARGET_PATH`: the resolved `<target-path>` from invocation
 - `ARTIFACT_TYPE`: `"skill"` if target contains a SKILL.md, `"mcp-server"` if it contains MCP tool definitions, `"codebase"` otherwise
-- `AUDIT_FOCUS`: derive from the audit skill — for skill-adversary: `"trigger accuracy, instruction clarity, security, completeness"`; for mcp-adversary: `"tool discrimination, schema quality, discoverability"`; for full-review/critical-code-reviewer: `"code quality, security, architecture, test coverage"`
+- `AUDIT_FOCUS`: derive from the audit skill — for skill-adversary: `"trigger accuracy, instruction clarity, security, completeness"`; for mcp-adversary: `"tool discrimination, schema quality, discoverability"`; for sweep/critical-code-reviewer: `"code quality, security, architecture, test coverage"`
 - `EXTERNAL_MODEL`: `google/gemini-2.5-pro` (default)
 
 Then run the original audit skill normally via the Skill tool. Both can run in parallel if the agent tool supports it.

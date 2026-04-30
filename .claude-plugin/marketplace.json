@@ -9,23 +9,23 @@
   },
   "plugins": [
     {
-      "name": "review",
-      "version": "0.1.1",
-      "description": "Skills for code, skill, and MCP review workflows — orchestrated walkthroughs, full-project audits, adversarial critique, and circularity-aware cross-model review.",
+      "name": "audit",
+      "version": "0.2.0",
+      "description": "Skills for code, skill, and MCP review workflows: orchestrated walkthroughs, full-project audits, adversarial critique, and circularity-aware cross-model review.",
       "source": "./",
       "strict": false,
       "skills": [
-        "./review/review-walkthrough",
-        "./review/full-review",
-        "./review/blindspot-review",
-        "./review/skill-adversary",
-        "./review/mcp-adversary"
+        "./audit/walkthrough",
+        "./audit/sweep",
+        "./audit/blindspot",
+        "./audit/skill-adversary",
+        "./audit/mcp-adversary"
       ]
     },
     {
       "name": "workflow",
       "version": "0.2.2",
-      "description": "Skills for project workflow automation — file consistency sweeps, cross-repo synchronization, and prose editing.",
+      "description": "Skills for project workflow automation: file consistency sweeps, cross-repo synchronization, and prose editing.",
       "source": "./",
       "strict": false,
       "skills": [

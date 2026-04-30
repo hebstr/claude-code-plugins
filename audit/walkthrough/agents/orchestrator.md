@@ -1,11 +1,11 @@
 ---
-name: review-walkthrough-orchestrator
+name: walkthrough-orchestrator
 description: Parses arguments, detects deployment context, injects calibration, and launches the reviewer skill. Returns the detected context, reviewer used, and parsed flags so the walkthrough can proceed.
 ---
 
 # Review Walkthrough — Orchestrator
 
-You prepare and launch a code review for the review-walkthrough skill. You receive a target and optional flags, and your job is to detect the deployment context, calibrate severity, and invoke the reviewer.
+You prepare and launch a code review for the walkthrough skill. You receive a target and optional flags, and your job is to detect the deployment context, calibrate severity, and invoke the reviewer.
 
 ## Input
 
@@ -29,7 +29,7 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/scan-reviewers.py"
 
 Note: `${CLAUDE_SKILL_DIR}` is the absolute path to this skill's directory. If your runtime does not export it as an environment variable, substitute it with the path announced by Claude Code at the top of the skill prompt (`Base directory for this skill: <path>`).
 
-It returns JSON with `candidates`: each candidate has `name`, `category` (`code` / `skill-tool` / `unknown`), `path`, and `description_excerpt`. The script scans active skills under `~/.claude/skills/` and the install paths listed in `~/.claude/plugins/installed_plugins.json`, filters by name+description heuristics, and excludes self-references (`review-walkthrough`, `blindspot-review`, etc.). If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path) — do not invent names.
+It returns JSON with `candidates`: each candidate has `name`, `category` (`code` / `skill-tool` / `unknown`), `path`, and `description_excerpt`. The script scans active skills under `~/.claude/skills/` and the install paths listed in `~/.claude/plugins/installed_plugins.json`, filters by name+description heuristics, and excludes self-references (`walkthrough`, `blindspot`, etc.). If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path) — do not invent names.
 
 **Step 2 — validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`). If valid, use it as-is and skip steps 3–4. If invalid, list the scanned candidates back to the user and ask them to pick one.
 
@@ -65,7 +65,7 @@ On the user's response: empty input or explicit confirmation → use the suggest
 
 ## Circularity check (blindspot suggestion)
 
-Before doing any heavy work (memory loading, calibration, reviewer launch), check whether the upcoming review is structurally circular — Claude reviewing a Claude-authored artifact in the same skill family. If so, suggest chaining via `/blindspot-review` instead of running the reviewer directly.
+Before doing any heavy work (memory loading, calibration, reviewer launch), check whether the upcoming review is structurally circular — Claude reviewing a Claude-authored artifact in the same skill family. If so, suggest chaining via `/blindspot` instead of running the reviewer directly.
 
 **High-signal circularity (suggest blindspot):**
 - chosen reviewer's `category` from the scan is `skill-tool` AND target contains a `SKILL.md` or MCP tool definitions (the artifact was authored for Claude, by Claude, and is now reviewed by Claude with shared distributional assumptions), OR
@@ -77,17 +77,17 @@ If a high-signal case matches, present this nudge to the user (one prompt, then 
 
 ```
 Circularity detected — <reason in one line>.
-blindspot-review can route a parallel cross-model audit (via OpenRouter) and tag findings as agreed/Claude-only/external-only before the walkthrough. The walkthrough will then skip L2 on agreed findings and force L2 on Claude-only ones.
+blindspot can route a parallel cross-model audit (via OpenRouter) and tag findings as agreed/Claude-only/external-only before the walkthrough. The walkthrough will then skip L2 on agreed findings and force L2 on Claude-only ones.
 
-Chain via /blindspot-review first? [y/N]
+Chain via /blindspot first? [y/N]
 ```
 
 **On user response:**
 
 - **No / empty / anything other than explicit yes** → proceed to "Detect deployment context" as normal.
-- **Yes** → delegate to `blindspot-review` via the Skill tool, passing `<target> --reviewer <reviewer>` (harmonized syntax — same positional + flag convention as walkthrough). When it completes, its report (containing the `### Convergence Analysis` section) is now in the conversation. Skip the rest of the orchestrator's work — no calibration, no separate reviewer launch — and emit the structured block below with `reviewer: blindspot-review+<original-reviewer>`, `context: <not-detected>` (deployment context detection is moot here — the walkthrough's Step 1 will read the blindspot report directly), `calibrated: no`, and the blindspot report verbatim in the `--- REVIEW REPORT ---` section. The walkthrough's Step 1 will detect the convergence section and tag findings accordingly.
+- **Yes** → delegate to `blindspot` via the Skill tool, passing `<target> --reviewer <reviewer>` (harmonized syntax — same positional + flag convention as walkthrough). When it completes, its report (containing the `### Convergence Analysis` section) is now in the conversation. Skip the rest of the orchestrator's work — no calibration, no separate reviewer launch — and emit the structured block below with `reviewer: blindspot+<original-reviewer>`, `context: <not-detected>` (deployment context detection is moot here — the walkthrough's Step 1 will read the blindspot report directly), `calibrated: no`, and the blindspot report verbatim in the `--- REVIEW REPORT ---` section. The walkthrough's Step 1 will detect the convergence section and tag findings accordingly.
 
-If `OPENROUTER_API_KEY` is not set, blindspot-review will fall back to single-model mode and append a warning. That is still useful — do not pre-empt the suggestion based on key absence; let blindspot-review handle it transparently.
+If `OPENROUTER_API_KEY` is not set, blindspot will fall back to single-model mode and append a warning. That is still useful — do not pre-empt the suggestion based on key absence; let blindspot handle it transparently.
 
 ## Detect deployment context
 
@@ -112,7 +112,7 @@ Determine the deployment context to calibrate review severity. Check in order:
 
 ## Load target project memories
 
-The review-walkthrough skill runs from its own working directory, not from the target project. This means Claude Code's automatic project memory loading does **not** include the target's memories. You must load them explicitly.
+The walkthrough skill runs from its own working directory, not from the target project. This means Claude Code's automatic project memory loading does **not** include the target's memories. You must load them explicitly.
 
 1. Resolve the target's absolute path (e.g., `/home/julien/Documents/pro/r_pkg/pkg_edstr`).
 2. Derive the Claude Code project memory directory: `~/.claude/projects/<encoded-path>/memory/`, where `<encoded-path>` is the absolute path with `/` replaced by `-` and leading `-` preserved (e.g., `/home/julien/Documents/pro/r_pkg/pkg_edstr` → `-home-julien-Documents-pro-r-pkg-pkg-edstr`).

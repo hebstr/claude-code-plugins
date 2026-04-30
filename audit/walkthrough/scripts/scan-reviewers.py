@@ -20,8 +20,8 @@ PLUGINS_MANIFEST = os.path.expanduser("~/.claude/plugins/installed_plugins.json"
 USER_SKILLS_DIR = os.path.expanduser("~/.claude/skills")
 
 BLACKLIST = {
-    "review-walkthrough",
-    "blindspot-review",
+    "walkthrough",
+    "blindspot",
 }
 
 NAME_PAT = re.compile(r"\b(review|adversary|audit|critic)", re.IGNORECASE)

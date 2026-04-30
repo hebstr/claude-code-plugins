@@ -1,13 +1,13 @@
 ---
-name: full-review
+name: sweep
 description: >
   Full-coverage project review: detects project type and size, spawns specialist background agents with disjoint scopes, consolidates all findings into one deduplicated report sorted by severity, then offers interactive walkthrough.
   Intent: the user wants a comprehensive, multi-facet review of an entire project — not a single file, not a PR diff, not a non-code document.
-  Trigger on: "full review", "review complète", "revue complète", "full audit", "audit complet", "lance la review complète", "/full-review",
+  Trigger on: "full review", "review complète", "revue complète", "full audit", "audit complet", "lance la review complète", "/sweep",
   "review this project", "audit this repo", "go through everything", "check the whole project", "thorough review",
   "passage complet sur le projet", "tout checker", "état des lieux du projet", "diagnostic complet",
   or any request that asks for a multi-angle assessment of an entire codebase covering architecture, quality, tests, and/or docs.
-  EXCLUSIONS OVERRIDE TRIGGERS — do NOT trigger on: single-file reviews (even if phrased as "full review of this file"), PR reviews or diffs, non-code document reviews (papers, resumes, CVs), CI/build commands ("lance tout" meaning "run tests + build"), or when the user explicitly asks for only /review-walkthrough.
+  EXCLUSIONS OVERRIDE TRIGGERS — do NOT trigger on: single-file reviews (even if phrased as "full review of this file"), PR reviews or diffs, non-code document reviews (papers, resumes, CVs), CI/build commands ("lance tout" meaning "run tests + build"), or when the user explicitly asks for only /walkthrough.
 ---
 
 # Full Review
@@ -19,7 +19,7 @@ Orchestrates a comprehensive, multi-angle review of a project by spawning specia
 ## Invocation
 
 ```
-/full-review [path]
+/sweep [path]
 ```
 
 `[path]` is optional — defaults to the current working directory.
@@ -66,7 +66,7 @@ Search for a `feedback_review_severity.md` file in the current project's memory 
 
 #### Report to user
 
-Report the detected type, size category, LOC count, number of agents to launch, whether calibration memory was found, and which skill dependencies are available (check the skill list). Always check `/critical-code-reviewer` (Agent A) and `/review-walkthrough` (Phase 4). For R package projects, also check `/testing-r-packages`, `/r-package-development` (Agent C), and `/cran-extrachecks` (Agent D). Report availability of each before proceeding.
+Report the detected type, size category, LOC count, number of agents to launch, whether calibration memory was found, and which skill dependencies are available (check the skill list). Always check `/critical-code-reviewer` (Agent A) and `/walkthrough` (Phase 4). For R package projects, also check `/testing-r-packages`, `/r-package-development` (Agent C), and `/cran-extrachecks` (Agent D). Report availability of each before proceeding.
 
 ### Phase 1 — Launch agents
 
@@ -172,7 +172,7 @@ Display the consolidated report using this **exact template** — follow the for
 ...
 
 ---
-Run `/review-walkthrough` to process these findings one by one interactively.
+Run `/walkthrough` to process these findings one by one interactively.
 ```
 
 **Mandatory elements:**
@@ -180,7 +180,7 @@ Run `/review-walkthrough` to process these findings one by one interactively.
 - The detected **project type** and **LOC** in the header
 - The **Calibration** line (whether memory was loaded or not)
 - **Duplicate count** in the summary line
-- The `---` separator and `/review-walkthrough` footer
+- The `---` separator and `/walkthrough` footer
 - If an agent failed or timed out, note the coverage gap at the bottom
 - If Agent A used the inline fallback instead of `/critical-code-reviewer`, show `Agent A (correctness, inline fallback)` instead of `Agent A (correctness via critical-code-reviewer)` in the Agents line
 - For R package projects, Agent C must report which R-specific skills were successfully invoked: `Agent C (docs/tests via testing-r-packages + r-package-development)` when both worked, `Agent C (docs/tests via testing-r-packages)` or `Agent C (docs/tests via r-package-development)` when only one was available, or `Agent C (docs/tests, no r-lib skills)` when neither was available. For non-R projects, always show `Agent C (docs/tests)`.
@@ -188,9 +188,9 @@ Run `/review-walkthrough` to process these findings one by one interactively.
 
 ### Phase 4 — Offer walkthrough
 
-After presenting the report, ask the user if they want to run `/review-walkthrough`. Do not auto-trigger it.
+After presenting the report, ask the user if they want to run `/walkthrough`. Do not auto-trigger it.
 
-If the user accepts, invoke the review-walkthrough skill. After the walkthrough completes and fixes have been applied, run the project's test suite automatically (do not ask). Truncate test output to the summary line (pass/fail count) — only display full output if tests fail. For R packages: run `devtools::document()` before `devtools::test()`. If no test suite is detected, skip this step and note "No test suite detected — skipping post-walkthrough verification."
+If the user accepts, invoke the walkthrough skill. After the walkthrough completes and fixes have been applied, run the project's test suite automatically (do not ask). Truncate test output to the summary line (pass/fail count) — only display full output if tests fail. For R packages: run `devtools::document()` before `devtools::test()`. If no test suite is detected, skip this step and note "No test suite detected — skipping post-walkthrough verification."
 
 ## Important constraints
 

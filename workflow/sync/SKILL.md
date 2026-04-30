@@ -1,6 +1,6 @@
 ---
 name: sync
-description: Scan all files in the current directory and subdirectories, identify files that are stale relative to recent changes, and update them. Always performs a cross-repo semantic consistency scan with parallel agents. User-invocable only via /sync.
+description: Scan all files in the current directory and subdirectories, identify files that are stale relative to recent changes, and update them. Always performs a cross-repo semantic consistency scan with parallel agents. User-invocable only via /workflow:sync.
 allowed-tools: Read Write Edit Glob Grep Agent
 ---
 

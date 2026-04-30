@@ -1,4 +1,4 @@
-# full-review — Design Notes
+# sweep — Design Notes
 
 ## Design decisions
 
@@ -14,13 +14,13 @@ Every agent that invokes an external skill (A → `/critical-code-reviewer`, C �
 ### LOC-based scaling
 Agent count adapts to project size. Small projects (< 1500 LOC) get 2–3 agents by merging docs/tests into architecture. When merging C into B, skill invocations (e.g., R-specific skills) carry over into B's prompt. The packaging agent (D) is only added when project-type-specific compliance matters. Validated: merging B+C works without coverage gaps (tested on parallel-review, 1,338 LOC).
 
-### Ouroboros integration (in review-walkthrough)
-`ouroboros_evaluate` must receive actual code (git diff) or file content as artifact — not a prose summary. Prose summaries produce misleading scores. review-walkthrough SKILL.md enforces this with explicit fallback flagging.
+### Ouroboros integration (in walkthrough)
+`ouroboros_evaluate` must receive actual code (git diff) or file content as artifact — not a prose summary. Prose summaries produce misleading scores. walkthrough SKILL.md enforces this with explicit fallback flagging.
 
 ## Related files
 
-- `${CLAUDE_PLUGIN_ROOT}/review/review-walkthrough/SKILL.md` — interactive walkthrough invoked after consolidation
-- `${CLAUDE_PLUGIN_ROOT}/review/blindspot-review/SKILL.md` — circularity-aware orchestrator that wraps full-review
+- `${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/SKILL.md` — interactive walkthrough invoked after consolidation
+- `${CLAUDE_PLUGIN_ROOT}/audit/blindspot/SKILL.md` — circularity-aware orchestrator that wraps sweep
 - `~/.claude/memory/feedback_review_workflow.md` — global feedback memory describing this workflow preference
 - `~/.claude/projects/<project-hash>/memory/feedback_review_severity.md` — project-specific calibration rules
 

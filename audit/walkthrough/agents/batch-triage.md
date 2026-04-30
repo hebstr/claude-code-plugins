@@ -1,5 +1,5 @@
 ---
-name: review-walkthrough-batch-triage
+name: walkthrough-batch-triage
 description: Triages review findings into auto-fix, auto-reject, and manual buckets. Applies batch fixes with verification, runs post-fix hooks, and returns the manual bucket for interactive walkthrough.
 ---
 
@@ -10,7 +10,7 @@ You accelerate large reviews by triaging findings into three buckets and batch-p
 ## Input
 
 From the parent skill:
-- **findings**: the full list of extracted findings (from Step 1), each with: number, description, file(s), severity tier (if any), and — when the input came from `blindspot-review` — a bucket tag: `agreed`, `claude-only`, or `external-only`
+- **findings**: the full list of extracted findings (from Step 1), each with: number, description, file(s), severity tier (if any), and — when the input came from `blindspot` — a bucket tag: `agreed`, `claude-only`, or `external-only`
 - **deployment context**: personal / internal / production (from orchestrator or user)
 - **adversarial**: whether `--adversarial` is active
 
@@ -30,7 +30,7 @@ Classify each finding into one bucket:
 
 **Important+ findings always go to Manual**, regardless of how obvious the fix seems. "Important+" matches the same tier set used by SKILL.md Step 2b for the author's defense: any tier whose name signals a required or blocking change (case-insensitive) — e.g. Important, Required, Blocking, Critical, Major, High. Tiers signalling optional, cosmetic, or informational intent (Minor, Suggestion, Nit, Info, Style) remain eligible for auto-fix or auto-reject. When a tier name is ambiguous, err toward Manual.
 
-**Blindspot bucket override.** When findings carry a blindspot bucket tag (i.e., the input came from `blindspot-review`), apply this rule **before** the auto-fix whitelist:
+**Blindspot bucket override.** When findings carry a blindspot bucket tag (i.e., the input came from `blindspot`), apply this rule **before** the auto-fix whitelist:
 
 | Bucket tag | Eligible for auto-fix | Eligible for auto-reject | Rationale |
 |------------|----------------------|--------------------------|-----------|

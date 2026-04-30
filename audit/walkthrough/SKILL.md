@@ -1,9 +1,9 @@
 ---
-name: review-walkthrough
+name: walkthrough
 description: >
   Interactive, point-by-point walkthrough of a review report produced by any review skill (skill-adversary, critical-code-reviewer, or any other). Two modes: **orchestrator mode** (provide a target + optional `--reviewer` and `--adversarial` flags — detects deployment context, calibrates severity, launches the reviewer, then walks through its report) and **walkthrough-only mode** (processes an existing report from the conversation). Parses review findings and processes each one at a time: re-evaluates validity, proposes and applies fixes, checks impacted files for regressions, and waits for user approval before moving on.
 
-  Usage: `/review-walkthrough [target] [--reviewer name] [--adversarial] [--batch|--no-batch]`
+  Usage: `/walkthrough [target] [--reviewer name] [--adversarial] [--batch|--no-batch]`
 
   Orchestrator mode: provide a target (file, directory, or glob). The set of available reviewers is discovered at runtime by scanning installed Claude Code skills — no hardcoded list. If `--reviewer` is omitted, the orchestrator detects the target type, suggests an adapted reviewer from the scanned set, and asks the user to confirm or pick another — there is no silent default.
 
@@ -33,7 +33,7 @@ Parse the block for: deployment context (level + detection method), reviewer use
 
 **CRITICAL: Do not stop here.** The review report is now available. Immediately proceed to Step 1 — do not summarize the review, do not ask the user what to do next, do not treat the reviewer's output as the end of your task. Your task is the walkthrough, not the review. The review was just the input. Continue now.
 
-**Recovery:** if the orchestrator or reviewer fails mid-execution (context exhaustion, agent timeout, interrupted session), the user can re-invoke `/review-walkthrough` without a target. If a partial or complete review report exists in the conversation from a previous attempt, it will be picked up in walkthrough-only mode — no need to re-run the reviewer.
+**Recovery:** if the orchestrator or reviewer fails mid-execution (context exhaustion, agent timeout, interrupted session), the user can re-invoke `/walkthrough` without a target. If a partial or complete review report exists in the conversation from a previous attempt, it will be picked up in walkthrough-only mode — no need to re-run the reviewer.
 
 If no target was provided (walkthrough-only mode), parse `--adversarial` and `--batch`/`--no-batch` from the user's invocation and skip directly to Step 1.
 
@@ -55,7 +55,7 @@ For two or more findings, state the total number of points found, then start pro
 
 ### Blindspot input detection
 
-Before showing the transparency status, check whether the report came from `blindspot-review`. Signal: presence of a `### Convergence Analysis` section listing three buckets (`Agreed findings`, `Claude-only findings`, `External-only findings`).
+Before showing the transparency status, check whether the report came from `blindspot`. Signal: presence of a `### Convergence Analysis` section listing three buckets (`Agreed findings`, `Claude-only findings`, `External-only findings`).
 
 If detected:
 - Tag each extracted finding with its bucket: `agreed`, `claude-only`, or `external-only`.
@@ -75,7 +75,7 @@ Before processing the first finding, report a brief capabilities status block so
 - **Severity reordering**: "applied" (if reordering happened) or "original order preserved" (if no tiers detected).
 - **Batch mode**: "active (N findings >= 15)" when Step 1b will run, "inactive (N findings < 15)" when it won't, or "forced via --batch" / "disabled via --no-batch" when overridden by the user.
 - **Cross-model validation**: report the active level based on `--adversarial` flag and bridge detection results (L1 always on Important+; L2 on Blocking/Required with `--adversarial` or on L1 divergence — see `agents/ouroboros-bridge.md` for details).
-- **Blindspot input** (only when the report came from `blindspot-review`): report bucket counts and the external model that already pre-validated the agreed bucket. Format: "blindspot input — N agreed / M Claude-only / K external-only (external model: <name>). L2 will skip the agreed bucket and force on Claude-only."
+- **Blindspot input** (only when the report came from `blindspot`): report bucket counts and the external model that already pre-validated the agreed bucket. Format: "blindspot input — N agreed / M Claude-only / K external-only (external model: <name>). L2 will skip the agreed bucket and force on Claude-only."
 
 If Ouroboros is available, add a brief glossary of the mechanisms that may fire during the walkthrough, so the user understands the transparency lines they will see later:
 
@@ -209,14 +209,14 @@ After the last point (or if the user abandons mid-walkthrough), give a brief sum
 
 The Mode column appears only when batch mode was active. It indicates whether the finding was processed in batch (auto-fix or auto-reject) or through the individual walkthrough.
 
-The Bucket column appears only when the input came from `blindspot-review` (Step 1 detected the `### Convergence Analysis` section). It surfaces where the cross-model judgment was load-bearing — useful retrospectively to see whether `agreed` findings were validated, `claude-only` findings (highest self-preference risk) held up under L2, and `external-only` findings (Claude blindspots) were accepted.
+The Bucket column appears only when the input came from `blindspot` (Step 1 detected the `### Convergence Analysis` section). It surfaces where the cross-model judgment was load-bearing — useful retrospectively to see whether `agreed` findings were validated, `claude-only` findings (highest self-preference risk) held up under L2, and `external-only` findings (Claude blindspots) were accepted.
 
 Follow with:
 - Count by status (e.g., "4 accepted, 1 rejected, 2 deferred")
 - If batch mode was active: breakdown by mode (e.g., "batch: 11 auto-fix, 8 auto-reject, 1 reverted to manual · manual: 12 walked through")
 - List of DEFERRED items with their one-line justification — these are the user's follow-up backlog
 
-After the status counts, add a **Mechanisms used** block summarizing what fired during the walkthrough and — critically — **why each non-fired mechanism was not triggered**. For each mechanism, report: count of invocations, and if zero, the reason in parentheses. When the input came from `blindspot-review`, add a `blindspot input` segment first, summarizing bucket distribution and L2 savings/forces from the bucket-aware routing. Example:
+After the status counts, add a **Mechanisms used** block summarizing what fired during the walkthrough and — critically — **why each non-fired mechanism was not triggered**. For each mechanism, report: count of invocations, and if zero, the reason in parentheses. When the input came from `blindspot`, add a `blindspot input` segment first, summarizing bucket distribution and L2 savings/forces from the bucket-aware routing. Example:
 > **Mechanisms:** blindspot input 32 (15 agreed / 9 claude-only / 8 external-only · external model: google/gemini-2.5-pro · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject — claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 by adversarial flag, 1 by L1 divergence — model: anthropic/claude-sonnet-4 via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
 
 The bridge returns pre-formatted mechanism summaries (cross-model status, evaluate results, drift score). Include them verbatim. If Ouroboros was not available, state: "Ouroboros: not available — walkthrough ran without automated QA, consensus, or drift check."

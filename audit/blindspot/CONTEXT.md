@@ -1,4 +1,4 @@
-# blindspot-review — Context & Design Rationale
+# blindspot — Context & Design Rationale
 
 ## Origin
 
@@ -7,7 +7,7 @@ Problème identifié en voulant reviewer skill-adversary avec skill-adversary lu
 
 ## Le problème
 
-Tout skill d'audit (skill-adversary, mcp-adversary, critical-code-reviewer, full-review…) est susceptible d'auditer un artefact produit par un système de la même famille — y compris lui-même.
+Tout skill d'audit (skill-adversary, mcp-adversary, critical-code-reviewer, sweep…) est susceptible d'auditer un artefact produit par un système de la même famille — y compris lui-même.
 
 Le terme académique est **"self-preference bias"** (Panickssery et al., 2024, arXiv: 2404.13076).
 Les LLMs reconnaissent et favorisent systématiquement leurs propres outputs, même à qualité contrôlée.
@@ -62,7 +62,7 @@ Patterns proches :
 
 ## Concept retenu
 
-### Nom : `blindspot-review`
+### Nom : `blindspot`
 
 ### Rôle
 
@@ -92,7 +92,7 @@ Ne remplace aucun skill d'audit — s'interpose quand le risque circulaire est d
 #### Structure
 
 ```
-blindspot-review/
+blindspot/
 ├── CONTEXT.md              (ce fichier)
 ├── SKILL.md                (orchestration, détection, routage, rapport)
 ├── agents/
@@ -108,13 +108,13 @@ blindspot-review/
 - Devil's advocate agent (challenge les findings trop indulgents)
 - Panel de juges (plusieurs modèles OpenRouter, agrégation Verga et al.)
 - Intégration avec task-observer pour feedback de terrain
-- Auto-détection de circularité dans les autres skills (hook sur skill-adversary, full-review)
+- Auto-détection de circularité dans les autres skills (hook sur skill-adversary, sweep)
 
 ### Cas d'usage concrets
 
 - skill-adversary review skill-adversary
 - mcp-adversary review le MCP d'ouroboros (qu'il utilise)
-- full-review review le repo de full-review
+- sweep review le repo de sweep
 - critical-code-reviewer review son propre code
 
 ### Triggering : invocation explicite uniquement
@@ -123,19 +123,19 @@ Testé avec skill-creator `run_loop.py` le 2026-03-30 : recall=0% sur 10 should-
 Le skill ne se déclenche jamais implicitement via la description seule.
 
 C'est un comportement attendu et assumé :
-- blindspot-review est un orchestrateur meta — il n'a de sens que quand l'utilisateur sait qu'il existe et l'invoque volontairement
+- blindspot est un orchestrateur meta — il n'a de sens que quand l'utilisateur sait qu'il existe et l'invoque volontairement
 - Le triggering implicite serait même contre-productif : intercepter un `skill-adversary` normal sans que l'utilisateur ait exprimé de concern de circularité serait intrusif
 - L'optimisation de description via `run_loop.py` (conçue pour le triggering implicite) n'est pas applicable à ce type de skill
 
 Mode d'invocation prévu :
-- `/blindspot-review <target-path> [--reviewer <audit-skill>]` (slash command, syntaxe harmonisée avec /review-walkthrough)
+- `/blindspot <target-path> [--reviewer <audit-skill>]` (slash command, syntaxe harmonisée avec /walkthrough)
 - Mention explicite par l'utilisateur ("lance blindspot", "blindspot review", "check for circularity")
 
 Les should-not-trigger queries passent à 100% (precision=100%), ce qui confirme l'absence de faux positifs.
 
 ### Premier test fonctionnel (2026-03-31)
 
-Invocation : `/blindspot-review skill-adversary ~/.claude/skills/skill-adversary/`
+Invocation : `/blindspot skill-adversary ~/.claude/skills/skill-adversary/`
 
 Résultat : flow complet exécuté avec succès.
 - Phase 0 : Strong circularity détectée (path overlap + model family overlap) — OK
@@ -144,7 +144,7 @@ Résultat : flow complet exécuté avec succès.
 
 **Validation clé du concept :** les 2 findings critiques (prompt injection, path traversal) ont été flaggés uniquement par Gemini. Claude ne les a pas vus. C'est exactement le type de blindspot que le skill est conçu pour détecter.
 
-Aucun bug ou finding sur blindspot-review lui-même lors de ce test.
+Aucun bug ou finding sur blindspot lui-même lors de ce test.
 
 ### Passage par skill-creator (2026-03-31)
 
@@ -156,7 +156,7 @@ Aucun bug ou finding sur blindspot-review lui-même lors de ce test.
 
 ### Self-review (2026-03-31)
 
-Invocation : `/blindspot-review skill-adversary ~/.claude/skills/blindspot-review/`
+Invocation : `/blindspot skill-adversary ~/.claude/skills/blindspot/`
 
 Résultat : Strong circularity détectée, cross-model judge + skill-adversary lancés en parallèle.
 - Gemini 2.5 Pro : 9 findings (2 critical, 3 high, 3 medium, 1 low)
@@ -170,7 +170,7 @@ Résultat : Strong circularity détectée, cross-model judge + skill-adversary l
 | Fix | Fichier | Description |
 |-----|---------|-------------|
 | G1 | cross-model-judge.md | Allowlist de 6 modèles autorisés, rejet des model IDs inconnus |
-| G2+C-3 | SKILL.md | Validation d'input : path boundary (~/.claude/ ou cwd), anti-récursion (rejet de blindspot-review comme audit-skill) |
+| G2+C-3 | SKILL.md | Validation d'input : path boundary (~/.claude/ ou cwd), anti-récursion (rejet de blindspot comme audit-skill) |
 | G7 | cross-model-judge.md | `trap EXIT` pour cleanup du fichier temp, `2>/dev/null` sur stderr curl |
 | C2 | SKILL.md | Méthodologie de convergence analysis (semantic matching, 3 buckets, gestion source manquante) |
 | I-1 | SKILL.md | Reformulation "no subagent" → "orchestration in main model, seul cross-model-judge délégué" |
@@ -188,7 +188,7 @@ Résultat : Strong circularity détectée, cross-model judge + skill-adversary l
 
 ### Deuxième test fonctionnel — skill-adversary (2026-03-31)
 
-Invocation : `/blindspot-review skill-adversary ~/.claude/skills/skill-adversary/`
+Invocation : `/blindspot skill-adversary ~/.claude/skills/skill-adversary/`
 
 Objectif : obtenir un rapport frais et appliquer les fixes qui avaient été identifiés lors du premier test mais jamais appliqués à skill-adversary.
 
@@ -221,5 +221,5 @@ Extensions V2 possibles : rubric forcing, devil's advocate, panel de juges.
 ### Ce que ça ne résout pas
 
 - Le biais résiduel intra-distribution même avec cross-model (Gemini a ses propres biais)
-- Le cas où l'utilisateur bypass blindspot-review et lance directement le skill d'audit
+- Le cas où l'utilisateur bypass blindspot et lance directement le skill d'audit
 - La validation humaine reste le plancher irréductible
