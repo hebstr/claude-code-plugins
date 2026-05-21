@@ -1,0 +1,23 @@
+{
+  "skill_name": "skill-adversary",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I just finished writing a skill for converting Quarto documents to Typst. Can you stress-test the SKILL.md at ~/skills/quarto-to-typst/SKILL.md? I want to know if the trigger description has blind spots and if the instructions have any ambiguities.",
+      "expected_output": "Should trigger skill-adversary. Should spawn trigger-attacker and instruction-critic agents, produce a structured adversary report with false positives, false negatives, ambiguities, and gaps.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "review my SKILL.md — it's at ./my-new-skill/SKILL.md. I'm worried the description is too broad and will trigger on stuff it shouldn't.",
+      "expected_output": "Should trigger skill-adversary. Casual phrasing, no explicit 'adversary' keyword but clearly asking for skill flaw detection focused on trigger boundaries.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I have a Python script in utils/parser.py that's getting messy. Can you critically review it and find any security issues or bad patterns?",
+      "expected_output": "Should NOT trigger skill-adversary. This is a code review request — should trigger critical-code-reviewer instead. The keyword 'critically review' overlaps but the target is a .py file, not a SKILL.md.",
+      "files": []
+    }
+  ]
+}

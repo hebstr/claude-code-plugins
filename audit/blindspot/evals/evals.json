@@ -1,0 +1,95 @@
+{
+  "skill_name": "blindspot",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/blindspot ~/.claude/skills/skill-adversary/ --reviewer skill-adversary",
+      "expected_output": "Detect strong circularity (path overlap + model family overlap). Attempt OpenRouter cross-model judge if OPENROUTER_API_KEY is set, fallback with warning if not. Report includes circularity assessment and transparency block.",
+      "files": [],
+      "expectations": [
+        "The output includes a Circularity Detection section with verdict 'Strong circularity'",
+        "The output includes a Transparency section",
+        "Path overlap is detected and reported as Yes",
+        "Model family overlap is detected and reported as Yes"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I want to review my skill with skill-adversary but it's a skill I wrote with Claude — is there a bias issue?",
+      "expected_output": "Detect model circularity (no path overlap but model family overlap). Ask for target path if not provided. Proceed with countermeasures.",
+      "files": [],
+      "expectations": [
+        "The skill triggers and acknowledges the circularity concern",
+        "The output identifies model family overlap",
+        "The user is asked to provide the target path"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "lance blindspot sur mcp-adversary qui review le MCP ouroboros",
+      "expected_output": "Detect model circularity for MCP server authored for Claude, reviewed by Claude via mcp-adversary.",
+      "files": [],
+      "expectations": [
+        "The skill triggers on French invocation",
+        "The output identifies mcp-adversary as the audit skill",
+        "Model circularity is detected"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "can Claude objectively review this skill or is there a conflict of interest?",
+      "expected_output": "Trigger and ask for target path and audit skill if not provided.",
+      "files": [],
+      "expectations": [
+        "The skill triggers on the circularity concern",
+        "The user is prompted for missing arguments (audit skill and target path)"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "add a second opinion from a different model on this review",
+      "expected_output": "Trigger and route to cross-model confirmation on an existing or upcoming review.",
+      "files": [],
+      "expectations": [
+        "The skill triggers on the cross-model request",
+        "The output references using an external model"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/skill-adversary ~/.claude/skills/litrev/",
+      "expected_output": "Should NOT trigger. Normal skill-adversary invocation without circularity concern.",
+      "files": [],
+      "expectations": [
+        "blindspot does NOT trigger"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "review this PR for me",
+      "expected_output": "Should NOT trigger. General PR review request.",
+      "files": [],
+      "expectations": [
+        "blindspot does NOT trigger"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "what is self-preference bias in LLM evaluation?",
+      "expected_output": "Should NOT trigger. Methodology question, not an audit request.",
+      "files": [],
+      "expectations": [
+        "blindspot does NOT trigger"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "run a full review on my Python project",
+      "expected_output": "Should NOT trigger. Full-review on a generic project, no circularity concern.",
+      "files": [],
+      "expectations": [
+        "blindspot does NOT trigger"
+      ]
+    }
+  ]
+}

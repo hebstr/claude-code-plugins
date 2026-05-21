@@ -1,0 +1,38 @@
+{
+  "name": "hebstr",
+  "owner": {
+    "name": "hebstr",
+    "email": "ju.diez@protonmail.com"
+  },
+  "metadata": {
+    "description": "Claude Code skills and plugins by hebstr."
+  },
+  "plugins": [
+    {
+      "name": "audit",
+      "description": "Skills for code, skill, and MCP review workflows: orchestrated walkthroughs, full-project audits, adversarial critique, and circularity-aware cross-model review.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./audit/walkthrough",
+        "./audit/sweep",
+        "./audit/blindspot",
+        "./audit/skill-adversary",
+        "./audit/mcp-adversary"
+      ]
+    },
+    {
+      "name": "workflow",
+      "description": "Skills for project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, session handoffs, source-backed recommendations, and documentation layout audits.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./workflow/sync",
+        "./workflow/write",
+        "./workflow/continue",
+        "./workflow/reco",
+        "./workflow/doc-structure"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Validate skill paths
+        run: |
+          python - <<'EOF'
+          import json, sys
+          from pathlib import Path
+
+          manifest = json.loads(Path(".claude-plugin/marketplace.json").read_text())
+          errors = []
+          for plugin in manifest.get("plugins", []):
+              for skill_path in plugin.get("skills", []):
+                  skill_md = Path(skill_path.lstrip("./")) / "SKILL.md"
+                  if not skill_md.exists():
+                      errors.append(f"Missing SKILL.md: {skill_md}")
+          if errors:
+              for e in errors:
+                  print(e)
+              sys.exit(1)
+          total = sum(len(p.get("skills", [])) for p in manifest.get("plugins", []))
+          print(f"OK — {total} skills validated")
+          EOF
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - name: Lint Python
+        run: uvx ruff check audit/walkthrough/scripts/scan-reviewers.py
