@@ -2,13 +2,9 @@
 name: sweep
 allowed-tools: Read Glob Grep Bash Agent Skill
 description: >
-  Full-coverage project review: detects project type and size, spawns specialist background agents with disjoint scopes, consolidates all findings into one deduplicated report sorted by severity, then offers interactive walkthrough.
-  Intent: the user wants a comprehensive, multi-facet review of an entire project: not a single file, not a PR diff, not a non-code document.
-  Trigger on: "full review", "review complète", "revue complète", "full audit", "audit complet", "lance la review complète", "/sweep",
-  "review this project", "audit this repo", "go through everything", "check the whole project", "thorough review",
-  "passage complet sur le projet", "tout checker", "état des lieux du projet", "diagnostic complet",
-  or any request that asks for a multi-angle assessment of an entire codebase covering architecture, quality, tests, and/or docs.
-  EXCLUSIONS OVERRIDE TRIGGERS, do NOT trigger on: single-file reviews (even if phrased as "full review of this file"), PR reviews or diffs, non-code document reviews (papers, resumes, CVs), CI/build commands ("lance tout" meaning "run tests + build"), or when the user explicitly asks for only /walkthrough.
+  User-invocable ONLY via `/audit:sweep`. Does not auto-trigger on mentions of "full review", "audit complet", "review complète", "review this project", "audit this repo", "thorough review", "diagnostic complet", "état des lieux du projet", or any phrasing requesting a multi-angle project assessment.
+  Full project review: detects project type and size, spawns specialist background agents with disjoint scopes (architecture, quality, tests, docs), consolidates findings into one deduplicated report sorted by severity, then offers an interactive walkthrough.
+  Not for: single-file reviews, PR or diff reviews, or non-code document reviews (papers, resumes, CVs).
 ---
 
 # Full Review

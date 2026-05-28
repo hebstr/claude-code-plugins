@@ -1,21 +1,9 @@
 ---
 name: skill-adversary
 description: >
-  Adversarial critic for Claude Code skills. Reviews a skill's full directory
-  (SKILL.md, agents, docs, templates) and produces a structured report of flaws:
-  trigger edge cases (false positives and false negatives), instruction ambiguities,
-  contradictions, cross-file coherence issues, and gaps. Use this skill whenever the
-  user asks to critically review, audit, stress-test, attack, or find flaws in a skill
-  (SKILL.md file). Also trigger on: "adversary review", "attack this skill", "find
-  trigger edge cases", "test my skill description", "audit my skill", "what's wrong
-  with this skill", "review my SKILL.md", or any request to find weaknesses in a
-  skill's triggering or instructions. Also trigger on symptom-based requests:
-  "my skill triggers on the wrong things", "skill fires incorrectly",
-  "description is too broad/narrow", "skill triggers when it shouldn't".
-  Do NOT trigger for: general code review (use
-  critical-code-reviewer), reviewing non-skill files, creating/editing skills
-  (use skill-creator), or any use of "trigger", "edge cases", "stress-test",
-  "skill description" in non-skill contexts (state machines, CI/CD, job postings, APIs).
+  User-invocable ONLY via `/audit:skill-adversary`. Does not auto-trigger on mentions of "audit this skill", "review SKILL.md", "find flaws", "adversary review", "attack this skill", "trigger edge cases", "stress-test", or French equivalents ("auditer cette skill", "trouver les failles", "passer ce skill au crible").
+  Adversarial reviewer for Claude Code skills: reads a skill's full directory (SKILL.md, agents, docs, templates) and reports trigger edge cases (false positives and negatives), instruction ambiguities, contradictions, cross-file coherence issues, and gaps.
+  Not for: general code review (use posit-dev:critical-code-reviewer), reviewing non-skill files, or creating/editing skills (use skill-creator).
 allowed-tools: Read Glob Grep Agent
 ---
 

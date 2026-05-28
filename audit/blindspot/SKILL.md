@@ -3,20 +3,9 @@ name: blindspot
 disable-model-invocation: true
 allowed-tools: Read Glob Grep Bash Agent Skill
 description: >
-  Circularity-aware orchestrator for audit skills. Detects when an audit skill (skill-adversary,
-  mcp-adversary, sweep, critical-code-reviewer) is about to review an artifact that shares
-  its own codebase, prompts, or model family, then injects cross-model judging and transparency
-  countermeasures via OpenRouter.
-  EXPLICIT-INVOCATION ONLY: this skill never auto-triggers from implicit context
-  (enforced by `disable-model-invocation: true`). Invoke directly via "/blindspot"
-  or by name ("lance blindspot", "blindspot review").
-  Use when: the user explicitly invokes blindspot, asks for a "circular review" /
-  "review circulaire" / "self-review check", flags that reviewer and target share
-  the same origin ("review [skill] with [skill]", "review this skill with skill-adversary"
-  on a Claude Code skill), or asks for circularity countermeasures alongside another
-  audit skill ("check for circularity", "add a second opinion", "get an external judge").
-  Do NOT apply to: general code review, PR review, plain skill-adversary/mcp-adversary/sweep
-  invocations without circularity concern, or LLM evaluation methodology discussions.
+  User-invocable ONLY via `/audit:blindspot`. Does not auto-trigger on mentions of "circular review", "review circulaire", "self-review check", "second opinion", "external judge", or any phrasing requesting circularity countermeasures. Runtime enforcement via `disable-model-invocation: true`: the Skill tool cannot launch this skill; user invocation is mandatory.
+  Reviewer orchestrator: detects when an audit skill (skill-adversary, mcp-adversary, sweep, critical-code-reviewer) is about to review an artifact that shares its codebase, prompts, or model family, then runs cross-model judging via OpenRouter, followed by convergence analysis over the resulting verdicts.
+  Not for: general code review, PR review, plain skill-adversary/mcp-adversary/sweep invocations without circularity concern, or LLM evaluation methodology discussions.
 ---
 
 # blindspot

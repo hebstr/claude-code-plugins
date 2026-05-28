@@ -21,8 +21,7 @@ Agent count adapts to project size. Small projects (< 1500 LOC) get 2–3 agents
 
 - `${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/SKILL.md`: interactive walkthrough invoked after consolidation
 - `${CLAUDE_PLUGIN_ROOT}/audit/blindspot/SKILL.md`: circularity-aware orchestrator that wraps sweep
-- `~/.claude/memory/feedback_review_workflow.md`: global feedback memory describing this workflow preference
-- `~/.claude/projects/<project-hash>/memory/feedback_review_severity.md`: project-specific calibration rules
+- Optional `feedback_review_severity.md` at `~/.claude/projects/<project-hash>/memory/` for reviewer calibration rules (dismissed false positives, idioms not to flag). See `SKILL.md` §"Calibration injection". Users without this file run uncalibrated.
 
 ## Backlog
 

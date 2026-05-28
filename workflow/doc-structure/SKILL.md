@@ -6,9 +6,9 @@ allowed-tools: Read Write Edit Grep
 
 # doc-structure
 
-Captured from the 2026-05-16 audit of `solatis/claude-config:doc-sync`. Convention refined on R packages and mixed-language analysis projects; may further evolve when exercised on Python-only or Quarto book projects.
+Convention refined on R packages and mixed-language analysis projects; may further evolve when exercised on Python-only or Quarto book projects.
 
-## Workflow (5 phases, adapted from solatis doc-sync)
+## Workflow (5 phases)
 
 ### 1. Discovery
 

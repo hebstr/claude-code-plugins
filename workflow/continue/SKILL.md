@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Flush durable facts to memory, update PLAN.md, and print a minimal continuation prompt. No handoff document is written. User-invocable ONLY via /workflow:continue.
+description: Flush durable facts to memory, update PLAN.md, and print a minimal continuation prompt. No handoff document is written. User-invocable ONLY via /workflow:continue; does not auto-trigger on mentions of 'continue', 'handoff', 'session handoff', 'continuation prompt', 'save state', 'persist', 'resume', or French equivalents ('continuer', 'passation', 'reprise', 'sauvegarder l''état').
 allowed-tools: Read Write Edit
 ---
 

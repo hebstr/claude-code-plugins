@@ -1,6 +1,6 @@
 ---
 name: reco
-description: "Deep recommendation backed by external sources (official documentation + community practice + verified citations). The CLAUDE.md communication rule already covers light-mode end-of-prompt recommendations; this skill is for the heavier output. Without arguments: ask the user what they want a recommendation on. With arguments: research the topic via parallel agents (official docs via WebFetch, community practice via WebSearch), then synthesize a structured recommendation. User-invocable ONLY via /workflow:reco; does not auto-trigger on mentions of 'recommendation', 'reco', 'recommend', 'suggest', 'advice', or French equivalents ('reco', 'recommande', 'recommandation', 'conseille', 'suggère')."
+description: "Deep recommendation backed by external sources (official documentation + community practice + verified citations). For an unsourced recommendation, ask the model directly; use this skill when external grounding is what makes the answer load-bearing. Without arguments: ask the user what they want a recommendation on. With arguments: research the topic via parallel agents (official docs via WebFetch, community practice via WebSearch), then synthesize a structured recommendation. User-invocable ONLY via /workflow:reco; does not auto-trigger on mentions of 'recommendation', 'reco', 'recommend', 'suggest', 'advice', or French equivalents ('reco', 'recommande', 'recommandation', 'conseille', 'suggère')."
 allowed-tools: WebFetch WebSearch Agent
 ---
 
@@ -14,7 +14,7 @@ This skill only runs when the user types `/workflow:reco` explicitly. It is not 
 
 If you arrived here through anything other than an explicit `/workflow:reco` invocation, stop and ask the user what they actually want.
 
-The light-mode equivalent ("present your own recommendation when offering choices") is already a CLAUDE.md communication rule. Invoke this skill only when the user wants the heavier output: official documentation + community practice + verified citations.
+For an unsourced recommendation, ask the model directly without invoking this skill. Use `/workflow:reco` when external grounding (official documentation + community practice + verified citations) is what makes the answer load-bearing.
 
 ## Input
 
@@ -33,7 +33,7 @@ If invoked with no arguments, ask the user what they want a recommendation on: d
 
 2. **Write the "My take" section now, before spawning any agent.** Emit the section heading and 1-3 sentences of your prior recommendation from training-data knowledge alone. This is the only point in the workflow where the prior can be formed without contamination by agent output. Commit to the take in writing here; do not rewrite it after agents return.
 
-   **Scope check.** After writing the take, decide whether external sources can meaningfully refine it. If the question is purely local (naming a private variable, choosing between two same-codebase helpers, formatting a single function), no public source will outweigh the user's own context. Stop here, emit a one-line note ("Question is local, no external research applicable; light-mode answer above. Use the CLAUDE.md communication rule for this class of question."), and do not spawn agents. Otherwise, proceed to Step 3.
+   **Scope check.** After writing the take, decide whether external sources can meaningfully refine it. If the question is purely local (naming a private variable, choosing between two same-codebase helpers, formatting a single function), no public source will outweigh the user's own context. Stop here, emit a one-line note ("Question is local, no external research applicable; the unsourced take above is the full answer."), and do not spawn agents. Otherwise, proceed to Step 3.
 
 3. **Spawn two parallel agents** in a single message (two `Agent` tool calls):
    - **Agent A: official documentation.** Search for and fetch the relevant official docs. Prefer authoritative sources (project websites, PEPs for Python, CRAN docs for R, RFCs, etc.). Verify URLs before citing. Report what the doc actually says, with quoted excerpts and source URLs. The agent must have WebFetch and WebSearch.

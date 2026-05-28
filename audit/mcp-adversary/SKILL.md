@@ -1,17 +1,9 @@
 ---
 name: mcp-adversary
 description: >
-  Adversarial critic for MCP servers. Reviews an MCP server's tool descriptions,
-  parameter schemas, and implementation code to find flaws: inter-tool discrimination
-  issues, discoverability gaps, schema anti-patterns, semantic drift between descriptions
-  and behavior, error handling inconsistencies, and undocumented workflow dependencies.
-  Use when the user asks to review, audit, stress-test, or find flaws in an MCP server.
-  Also trigger on: "review my MCP tools", "audit my MCP server", "are my tool descriptions
-  good", "find issues in my MCP server", "test my tool schemas", "what's wrong with my MCP
-  server", "MCP tool quality", "review my tool descriptions".
-  Do NOT trigger for: general code review (use critical-code-reviewer), security scanning
-  (use mcp-scan), reviewing Claude Code skills (use skill-adversary), creating MCP servers,
-  or non-MCP tool/API review.
+  User-invocable ONLY via `/audit:mcp-adversary`. Does not auto-trigger on mentions of "review my MCP", "audit MCP server", "tool descriptions", "schema review", "tool quality", or French equivalents ("auditer mon MCP", "passer mon MCP au crible").
+  Adversarial reviewer for MCP servers: reads tool descriptions, parameter schemas, and implementation code, then reports tool-selection ambiguity, discoverability gaps, schema anti-patterns, semantic drift between description and behavior, error-handling inconsistencies, and undocumented workflow dependencies.
+  Not for: general code review (use posit-dev:critical-code-reviewer), security scanning (use mcp-scan), reviewing Claude Code skills (use skill-adversary), creating MCP servers, or non-MCP tool/API review.
 allowed-tools: Read Glob Grep Agent
 ---
 

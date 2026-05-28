@@ -130,8 +130,8 @@ Determine the deployment context to calibrate review severity. Check in order:
 
 The walkthrough skill runs from its own working directory, not from the target project. This means Claude Code's automatic project memory loading does **not** include the target's memories. You must load them explicitly.
 
-1. Resolve the target's absolute path (e.g., `/home/julien/Documents/pro/r_pkg/pkg_edstr`).
-2. Derive the Claude Code project memory directory: `~/.claude/projects/<encoded-path>/memory/`, where `<encoded-path>` is the absolute path with `/` replaced by `-` and leading `-` preserved (e.g., `/home/julien/Documents/pro/r_pkg/pkg_edstr` → `-home-julien-Documents-pro-r-pkg-pkg-edstr`).
+1. Resolve the target's absolute path (e.g., `/home/<user>/projects/my-pkg`).
+2. Derive the Claude Code project memory directory: `~/.claude/projects/<encoded-path>/memory/`, where `<encoded-path>` is the absolute path with `/` replaced by `-` and leading `-` preserved (e.g., `/home/<user>/projects/my-pkg` → `-home-<user>-projects-my-pkg`).
 3. Check if `feedback_review_severity.md` exists in that directory. If it does, read it: this contains reviewer calibration rules from prior sessions (dismissed false positives, R idioms not to flag, etc.).
 4. Check if `MEMORY.md` exists in that directory. If it does, scan it for other feedback-type memories that might be relevant to the review (e.g., `feedback_code_text_english.md`). Read any that seem review-relevant.
 5. Collect all loaded memory content into a `[prior calibration]` block.
