@@ -86,7 +86,7 @@ If no `### Convergence Analysis` section is present, no tagging: every finding i
 Before processing the first finding, report a brief capabilities status block so the user knows exactly what mechanisms are active for this walkthrough:
 
 - **Deployment context** (only if Step 0 ran): report the detected context level and how it was determined. E.g., "Context: personal (detected from path ~/scripts/)." or "Context: production (CI config found)." If the context was asked to the user, say "Context: [level] (user-provided)."
-- **Reviewer and calibration** (only if Step 0 ran): report the reviewer used and its calibration status, both parsed from the orchestrator block (`reviewer: <name>` and `calibrated: yes|no`). E.g., "Reviewer: critical-code-reviewer (calibrated)." or "Reviewer: skill-adversary (not calibrated)." In walkthrough-only mode, omit this line: there was no orchestrator run to report.
+- **Reviewer and calibration**: in orchestrator mode (Step 0 ran), report the reviewer used and its calibration status, both parsed from the orchestrator block (`reviewer: <name>` and `calibrated: yes|no`). E.g., "Reviewer: critical-code-reviewer (calibrated)." or "Reviewer: skill-adversary (not calibrated)." In **walkthrough-only mode** there is no reviewer to report; instead perform the once-before-the-loop prior-calibration load (Step 2) ahead of this block and report its outcome: "Prior calibration: loaded from `<project root>` (N rules)." when a root was identified and memories found, or "Prior calibration: none (no identifiable project root)." / "Prior calibration: none (no calibration memories found)." otherwise.
 - **Ouroboros**: render the bridge's detection result. Vocabulary (`consensus_available`, `available`, `anomalies`, L1/L2, version classes) is defined canonically in `agents/ouroboros-bridge.md`; refer to it for term semantics. Three components, in order:
   1. **Version line**: always shown, even when everything is normal. Format:
      - `available: true`, `version` set → "Ouroboros `{version}` ✓ (`{consensus label}`)."
@@ -192,6 +192,8 @@ When the batch triage agent finishes, its output contains: the manual bucket (fi
 
 ## Step 2: Process each point (manual bucket)
 
+**Load prior calibration once, before the loop.** In orchestrator mode this already happened in Step 0 (the orchestrator returned a `[prior calibration]` block). In **walkthrough-only mode** it did not, so do it now, but only when the project root is identifiable: derive it by walking upward from the current working directory exactly as Step 4a does (stop at the first ancestor containing `.git/`, `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`; never traverse above `$HOME`). If a root is found, run the **Load target project memories** procedure from `agents/orchestrator.md` against it (including the `Canonical index:`/`Canonical location:` redirect-stub follow and the `feedback_review_severity*.md` glob) and keep its `[prior calibration]` block for the per-finding check below. If no root is found, skip the load and proceed without prior calibration. This is the shared loader, not an ad hoc memory read: it reuses the orchestrator's procedure verbatim, gated on an identifiable root.
+
 For each point, follow this exact sequence:
 
 ### 2a. Context
@@ -205,7 +207,7 @@ Start from the code, not from the review report. Read the relevant source and fo
 Assess the finding critically and honestly:
 - Is the issue real, or is it a false positive?
 - Is it relevant given the project's context and conventions?
-- Does it contradict a prior calibration rule from the target project's memory? If the orchestrator loaded prior calibration (from `feedback_review_severity.md` or similar), check each finding against those rules. A finding that matches a previously dismissed pattern should be REJECTED immediately with "Prior calibration: <rule>" as reason. Do not re-litigate patterns the author has already validated. **In walkthrough-only mode** (Step 0 did not run), there is no project calibration loaded; skip this check entirely and rely on the user to flag any pattern that should have been rejected. Do not attempt to detect context or load memory ad hoc, as that would duplicate the orchestrator's responsibility outside its lifecycle.
+- Does it contradict a prior calibration rule from the target project's memory? Whenever a `[prior calibration]` block was loaded (by the orchestrator in Step 0, or by the once-before-the-loop load above in walkthrough-only mode), check each finding against those rules. A finding that matches a previously dismissed pattern should be REJECTED immediately with "Prior calibration: <rule>" as reason. Do not re-litigate patterns the author has already validated. If no block was loaded (no orchestrator run and no identifiable project root), skip this check and rely on the user to flag any pattern that should have been rejected.
 - Is the severity appropriate?
 - Is the suggested fix (if any) the right approach?
 - If the finding flags a real issue but does not propose a concrete fix, formulate one yourself: turn "potential issue with X" into "do Y at line Z to fix X". If after evaluation the finding is purely informational (no code change warranted), it is not noise. Assign it NOTED.
@@ -359,7 +361,7 @@ If the target file already exists, append rows to the existing table: do not ove
 
 ### 4b. Update memory with review calibration
 
-If any findings were REJECTED, check whether the project already has a `feedback_review_severity.md` memory file. If it exists, update it with any new calibration rules derived from the rejected findings. If it does not exist, create it.
+If any findings were REJECTED, write new calibration rules into the **same memory dir the loader resolved** (the redirect-followed canonical dir if a `Canonical index:`/`Canonical location:` stub was present, otherwise the harness memory dir; see the **Load target project memories** procedure in `agents/orchestrator.md`). Look for an existing `feedback_review_severity*.md` file: if one already covers the relevant scope, update it; if several scoped files exist and none fits, create a new scoped file rather than a bare `feedback_review_severity.md` that would shadow them. If none exists at all, create `feedback_review_severity.md`.
 
 The memory should capture the general calibration pattern (e.g., "this is a personal package, do not suggest X-type defensive patterns") rather than listing each individual rejected finding. Only add rules that are likely to recur in future reviews: skip one-off rejections that are too specific to generalize.
 

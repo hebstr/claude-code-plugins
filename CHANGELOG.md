@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-03
+
+### Fixed
+
+- `audit`: the calibration-memory redirect stub was matched only as `Canonical index:`, so a memory store reached through a `Canonical location:` stub never resolved and `sweep`/`walkthrough` reviews silently ran uncalibrated. Both labels now match (case-insensitive), and the extracted path is normalized (surrounding backticks and whitespace stripped, trailing punctuation removed, leading `~` expanded).
+
+### Changed
+
+- `audit`: calibration loading globs scoped `feedback_review_severity*.md` variants (e.g. `_personal`) instead of a single fixed filename, reading every match.
+- `audit`: `walkthrough`-only mode now loads prior calibration once before the finding loop, deriving the project root by upward walk; previously only orchestrator mode loaded calibration.
+
 ## [0.1.0] - 2026-05-28
 
 Initial release of the `hebstr` marketplace: two plugins (`audit`, `workflow`) covering 10 skills. Every skill is explicit-invocation only: invoked by typing its slash command, never auto-triggered from natural language.
@@ -30,5 +41,6 @@ Initial release of the `hebstr` marketplace: two plugins (`audit`, `workflow`) c
 
 - `skill-adversary` and `mcp-adversary`: sub-agents use path-based file access instead of embedded prompts, removing prompt-injection surface.
 
-[Unreleased]: https://github.com/hebstr/claude-code-plugins/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hebstr/claude-code-plugins/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/hebstr/claude-code-plugins/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hebstr/claude-code-plugins/releases/tag/v0.1.0

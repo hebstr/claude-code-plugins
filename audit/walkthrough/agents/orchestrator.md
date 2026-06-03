@@ -128,15 +128,16 @@ Determine the deployment context to calibrate review severity. Check in order:
 
 ## Load target project memories
 
-The walkthrough skill runs from its own working directory, not from the target project. This means Claude Code's automatic project memory loading does **not** include the target's memories. You must load them explicitly.
+The walkthrough skill runs from its own working directory, not from the target project. This means Claude Code's automatic project memory loading does **not** include the target's memories. You must load them explicitly. This procedure is shared: walkthrough-only mode invokes the same steps once it has resolved a project root (see the walkthrough skill's Step 2).
 
 1. Resolve the target's absolute path (e.g., `/home/<user>/projects/my-pkg`).
-2. Derive the Claude Code project memory directory: `~/.claude/projects/<encoded-path>/memory/`, where `<encoded-path>` is the absolute path with `/` replaced by `-` and leading `-` preserved (e.g., `/home/<user>/projects/my-pkg` → `-home-<user>-projects-my-pkg`).
-3. Check if `feedback_review_severity.md` exists in that directory. If it does, read it: this contains reviewer calibration rules from prior sessions (dismissed false positives, R idioms not to flag, etc.).
-4. Check if `MEMORY.md` exists in that directory. If it does, scan it for other feedback-type memories that might be relevant to the review (e.g., `feedback_code_text_english.md`). Read any that seem review-relevant.
-5. Collect all loaded memory content into a `[prior calibration]` block.
+2. Derive the Claude Code project memory directory: `~/.claude/projects/<encoded-path>/memory/`, where `<encoded-path>` is the absolute path with `/` replaced by `-` and leading `-` preserved (e.g., `/home/<user>/projects/my-pkg` → `-home-<user>-projects-my-pkg`). Call this the **memory dir**.
+3. **Follow a redirect stub.** Read `MEMORY.md` in the memory dir. If it is a redirect stub, it carries a line pointing at a canonical store kept elsewhere, labelled either `Canonical index: <path>` or `Canonical location: <path>` (match either label, case-insensitive). Extract `<path>`, stripping surrounding backticks and whitespace and any trailing punctuation, and expanding a leading `~` to the home directory; resolve it and use its containing directory as the memory dir for the rest of this procedure. If `MEMORY.md` is absent or carries no such line, keep the harness memory dir unchanged. This is a pure superset: default setups have no stub, so the branch never fires for them.
+4. Read every file in the memory dir matching `feedback_review_severity*.md` (the suffix varies by scope, e.g. `feedback_review_severity.md`, `feedback_review_severity_personal.md`). These hold reviewer calibration rules from prior sessions (dismissed false positives, R idioms not to flag, etc.).
+5. Scan the memory dir's `MEMORY.md` (the canonical index, if a redirect was followed) for other feedback-type memories relevant to the review (e.g., `feedback_code_text_english.md`). Read any that seem review-relevant.
+6. Collect all loaded memory content into a `[prior calibration]` block.
 
-If no target project memories exist, skip this step: the reviewer runs without prior calibration context.
+If no target project memories exist (no memory dir, or no matching files after following any redirect), skip this step: the consumer runs without prior calibration context.
 
 ## Inject calibration and launch
 

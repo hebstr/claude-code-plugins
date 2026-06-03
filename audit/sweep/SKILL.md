@@ -59,7 +59,7 @@ Classify:
 
 #### Calibration memory (optional)
 
-Search for a `feedback_review_severity.md` file in the current project's memory directory (the `~/.claude/projects/<current-project-hash>/memory/` that corresponds to the working directory). If found, read its content; it contains calibration rules for known false positive patterns (e.g., R idioms not to flag). This content will be injected into every agent prompt as "Known false positive patterns, do not flag these".
+Resolve the current project's memory directory (the `~/.claude/projects/<current-project-hash>/memory/` that corresponds to the working directory). First read its `MEMORY.md`: if it is a redirect stub carrying a `Canonical index: <path>` or `Canonical location: <path>` line (either label, case-insensitive; a user who keeps memory in a single canonical store elsewhere), extract `<path>` (stripping surrounding backticks, whitespace, and trailing punctuation, and expanding a leading `~` to the home directory), resolve it, and use its containing directory instead; if absent or carrying no such line, keep the harness directory. Then read every file in the resolved directory matching `feedback_review_severity*.md` (the suffix varies by scope, e.g. `feedback_review_severity.md`, `feedback_review_severity_personal.md`); they contain calibration rules for known false positive patterns (e.g., R idioms not to flag). This content will be injected into every agent prompt as "Known false positive patterns, do not flag these". Default setups have no stub, so the redirect branch never fires for them.
 
 #### Report to user
 

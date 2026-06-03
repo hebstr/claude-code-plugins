@@ -6,7 +6,7 @@
 Each agent has explicit Scope and Exclude lists. No two agents evaluate the same facet. Convergence (two agents flagging the same issue despite disjoint scopes) is a strong signal, not an artifact of overlapping instructions. Agent B (Explore/haiku) is the one most prone to scope creep into docs/tests territory; the current triple-layer defense (exclusion list + strict boundary + scope enforcement checklist) keeps it in line.
 
 ### Calibration memory injection
-Phase 0 searches for `feedback_review_severity.md` in the project memory directory. If found, its rules are injected into every agent prompt. This prevents agents from re-flagging known false positives (e.g., R idioms: lazy eval, copy-on-modify, NAMESPACE imports, Suggests-guarded packages).
+Phase 0 globs `feedback_review_severity*.md` in the project memory directory (following a `Canonical index:`/`Canonical location:` redirect stub in `MEMORY.md` first, so a canonical-store setup resolves correctly). If found, its rules are injected into every agent prompt. This prevents agents from re-flagging known false positives (e.g., R idioms: lazy eval, copy-on-modify, NAMESPACE imports, Suggests-guarded packages).
 
 ### Skill fallback and transparency chain
 Every agent that invokes an external skill (A → `/critical-code-reviewer`, C → `/testing-r-packages` + `/r-package-development`, D → `/cran-extrachecks`) follows a three-layer contract: (1) instruction-level fallback if the skill is absent, (2) Phase 0 reports skill availability before launch, (3) Phase 3 Agents line shows exactly which skills were used vs inline fallback.
@@ -21,7 +21,7 @@ Agent count adapts to project size. Small projects (< 1500 LOC) get 2–3 agents
 
 - `${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/SKILL.md`: interactive walkthrough invoked after consolidation
 - `${CLAUDE_PLUGIN_ROOT}/audit/blindspot/SKILL.md`: circularity-aware orchestrator that wraps sweep
-- Optional `feedback_review_severity.md` at `~/.claude/projects/<project-hash>/memory/` for reviewer calibration rules (dismissed false positives, idioms not to flag). See `SKILL.md` §"Calibration injection". Users without this file run uncalibrated.
+- Optional `feedback_review_severity*.md` at `~/.claude/projects/<project-hash>/memory/` (or the canonical dir pointed to by a `Canonical index:`/`Canonical location:` redirect stub) for reviewer calibration rules (dismissed false positives, idioms not to flag). See `SKILL.md` §"Calibration memory". Users without these files run uncalibrated.
 
 ## Backlog
 
