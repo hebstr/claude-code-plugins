@@ -314,7 +314,7 @@ Proceed to Step 2 with only the manual bucket.
 
 **Load prior calibration once, before the loop.** In orchestrator mode this already happened in Step 0 (the orchestrator produced a `[prior calibration]` block).
 In **walkthrough-only mode** it did not, so do it now, but only when the project root is identifiable: derive it by walking upward from the current working directory exactly as Step 4a does (stop at the first ancestor containing `.git/`, `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`; never traverse above `$HOME`).
-If a root is found, run the **Load target project memories** procedure from `agents/orchestrator.md` against it (including the `Canonical index:`/`Canonical location:` redirect-stub follow and the `feedback_review_severity*.md` glob) and keep its `[prior calibration]` block for the per-finding check below.
+If a root is found, run the **Load target project memories** procedure from `agents/orchestrator.md` against it (including its candidate order, `autoMemoryDirectory` then the harness memory dir with its redirect stub then `~/.claude/memory/`, the project's own `.claude/memory/` read on top of the chosen dir, and the `feedback_review_severity*.md` glob) and keep its `[prior calibration]` block for the per-finding check below.
 If no root is found, skip the load and proceed without prior calibration.
 This is the shared loader, not an ad hoc memory read: it reuses the orchestrator's procedure verbatim, gated on an identifiable root.
 
@@ -581,7 +581,7 @@ Replace the standard append-count persistence line with: `DEFERRED.md revisited:
 
 ### 4b. Update memory with review calibration
 
-If any findings were REJECTED, write new calibration rules into the **same memory dir the loader resolved** (the redirect-followed canonical dir if a `Canonical index:`/`Canonical location:` stub was present, otherwise the harness memory dir; see the **Load target project memories** procedure in `agents/orchestrator.md`).
+If any findings were REJECTED, write new calibration rules into the **same memory dir the loader resolved** (the first candidate holding calibration, otherwise the first that exists; see the **Load target project memories** procedure in `agents/orchestrator.md`).
 Look for an existing `feedback_review_severity*.md` file: if one already covers the relevant scope, update it; if several scoped files exist and none fits, create a new scoped file rather than a bare `feedback_review_severity.md` that would shadow them.
 If none exists at all, create `feedback_review_severity.md`.
 

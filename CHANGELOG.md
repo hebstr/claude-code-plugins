@@ -26,6 +26,10 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: `blindspot` resolved the reviewer's directory only from a bare name under `audit/` or `~/.claude/skills/`, so a qualified `plugin:skill` name from the scan resolved nothing and the path overlap check fell back to its distributional condition.
   Resolution now takes the matching scan candidate's `path` first, and strips the `plugin:` prefix in the fallback steps.
   The frontmatter reader strips block scalar markers (`|`, `>-`) and surrounding quotes, stops a value at the next unindented line whatever the key's case, and no longer reads an empty `description:` as the following key.
+- `audit`: prior calibration for `walkthrough` and `sweep` was read only from the harness memory directory, derived from the target path with only `/` encoded, so a subdirectory target, a path containing `.`, a relocated `autoMemoryDirectory` or a memory store kept outside the per-project directories all ran uncalibrated without notice.
+  The shared loader keys the harness directory by repository root with every character other than a letter, digit or `-` encoded, and uses the first of `autoMemoryDirectory`, that directory (redirect stub still followed) and `~/.claude/memory/` that holds `feedback_review_severity*.md`.
+  Rules in the project's own `.claude/memory/` are read on top of that directory rather than instead of it.
+  `walkthrough` writes new calibration rules to the chosen directory, never to the project store, and `sweep` runs this procedure instead of keeping its own copy.
 
 ### Changed
 
