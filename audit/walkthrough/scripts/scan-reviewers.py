@@ -11,13 +11,12 @@ Used by agents/orchestrator.md when --reviewer is omitted.
 
 import glob
 import json
-import os
 import re
 import sys
 from pathlib import Path
 
-PLUGINS_MANIFEST = os.path.expanduser("~/.claude/plugins/installed_plugins.json")
-USER_SKILLS_DIR = os.path.expanduser("~/.claude/skills")
+PLUGINS_MANIFEST = Path("~/.claude/plugins/installed_plugins.json").expanduser()
+USER_SKILLS_DIR = Path("~/.claude/skills").expanduser()
 
 BLACKLIST = {
     "walkthrough",
@@ -44,9 +43,9 @@ CODE_SIGNALS = re.compile(
 
 
 def active_install_paths():
-    if not os.path.exists(PLUGINS_MANIFEST):
+    if not PLUGINS_MANIFEST.exists():
         return []
-    with open(PLUGINS_MANIFEST) as f:
+    with PLUGINS_MANIFEST.open() as f:
         data = json.load(f)
     paths = []
     for installs in data.get("plugins", {}).values():
@@ -59,9 +58,10 @@ def active_install_paths():
 
 def collect_skill_files():
     files = set()
+    # glob.glob skips hidden dirs and follows symlinks under **, Path.glob does the reverse
     for p in active_install_paths():
-        files.update(glob.glob(f"{p}/**/SKILL.md", recursive=True))
-    files.update(glob.glob(f"{USER_SKILLS_DIR}/*/SKILL.md"))
+        files.update(glob.glob(f"{p}/**/SKILL.md", recursive=True))  # noqa: PTH207
+    files.update(glob.glob(f"{USER_SKILLS_DIR}/*/SKILL.md"))  # noqa: PTH207
     return sorted(files)
 
 
@@ -101,9 +101,7 @@ def is_reviewer(name, description):
         return False
     if not (NAME_PAT.search(name) and DESC_PAT.search(description)):
         return False
-    if EXCLUDE_DESC.search(description):
-        return False
-    return True
+    return not EXCLUDE_DESC.search(description)
 
 
 def main():
@@ -127,9 +125,7 @@ def main():
             }
         )
     candidates.sort(key=lambda c: c["name"])
-    json.dump(
-        {"candidates": candidates, "count": len(candidates)}, sys.stdout, indent=2
-    )
+    json.dump({"candidates": candidates, "count": len(candidates)}, sys.stdout, indent=2)
     sys.stdout.write("\n")
 
 

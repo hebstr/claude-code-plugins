@@ -1,12 +1,14 @@
 # Cross-Model Judge
 
-External-model audit agent for blindspot. Routes a structured audit prompt to a
+External-model audit agent for blindspot.
+Routes a structured audit prompt to a
 non-Claude model via OpenRouter.
 
 ## Task
 
 You receive a target artifact and must send a structured audit to an external model via
-OpenRouter API. You are a router, not a reviewer; do not add your own findings.
+OpenRouter API.
+You are a router, not a reviewer; do not add your own findings.
 
 ## Inputs
 
@@ -14,45 +16,58 @@ You will receive:
 - `TARGET_PATH`: path to the artifact being reviewed
 - `ARTIFACT_TYPE`: one of "skill", "mcp-server", "codebase", "other"
 - `AUDIT_FOCUS`: what the original audit skill would examine
-- `EXTERNAL_MODEL`: OpenRouter model ID, already chosen by the parent skill (see `audit/blindspot/SKILL.md`, "Pick external model"). The agent does not select or default this value; it receives a concrete ID and re-validates its format.
+- `EXTERNAL_MODEL`: OpenRouter model ID, already chosen by the parent skill (see `audit/blindspot/SKILL.md`, "Pick external model").
+The agent does not select or default this value; it receives a concrete ID and re-validates its format.
 
 ### Model selection
 
-The parent skill (`audit/blindspot/SKILL.md`) handles model choice via an interactive menu of six curated options plus a custom-input flow. The agent receives an already-validated `EXTERNAL_MODEL` and trusts it.
+The parent skill (`audit/blindspot/SKILL.md`) handles model choice via an interactive menu of six curated options plus a custom-input flow.
+The agent receives an already-validated `EXTERNAL_MODEL` and trusts it.
 
 **Curated options** surfaced in the menu:
 
-| Model ID | Family |
-|----------|--------|
-| `google/gemini-2.5-pro` | Google (menu default) |
-| `google/gemini-2.5-flash` | Google |
-| `openai/gpt-4.1` | OpenAI |
-| `openai/o4-mini` | OpenAI |
-| `deepseek/deepseek-r1` | DeepSeek |
-| `meta-llama/llama-4-maverick` | Meta |
+  | Model ID                      | Family                |
+  | ----------------------------- | --------------------- |
+  | `google/gemini-2.5-pro`       | Google (menu default) |
+  | `google/gemini-2.5-flash`     | Google                |
+  | `openai/gpt-4.1`              | OpenAI                |
+  | `openai/o4-mini`              | OpenAI                |
+  | `deepseek/deepseek-r1`        | DeepSeek              |
+  | `meta-llama/llama-4-maverick` | Meta                  |
 
-**Format validation at this layer.** Independently of the skill, the agent re-validates `EXTERNAL_MODEL` against the regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$` before any use. If it does not match, report the error and stop. Do not interpolate the value. This is defense in depth against a future change to the skill or a direct agent invocation that bypasses the menu. The `jq --arg` parameterization in step 3 below is the canonical injection safeguard; the regex catches obvious typos earlier and prevents wasted OpenRouter API errors.
+**Format validation at this layer.** Independently of the skill, the agent re-validates `EXTERNAL_MODEL` against the regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$` before any use.
+If it does not match, report the error and stop.
+Do not interpolate the value.
+This is defense in depth against a future change to the skill or a direct agent invocation that bypasses the menu.
+The `jq --arg` parameterization in step 3 below is the canonical injection safeguard; the regex catches obvious typos earlier and prevents wasted OpenRouter API errors.
 
 ## Steps
 
 ### 1. Read the target artifact
 
 Read all relevant files at `TARGET_PATH`:
+
 - For skills: SKILL.md, all files in agents/, doc/, templates/
+
 - For MCP servers: main server file, tool definitions, config
+
 - For codebases: select up to ~50 files using these heuristics, in order:
+
   1. **Entry points and configuration**: `README*`, `pyproject.toml` / `package.json` / `Cargo.toml` / `DESCRIPTION` / `go.mod`, `__main__.py` / `main.*` / `index.*` / `cli.*`, `Makefile`, `*.config.*` at the project root.
-  2. **High-fan-in source files**: files imported by the most other files (rough proxy: `grep -l "from <module>\|import <module>"` count). For repos with no clear module graph, take the largest source files by line count instead.
+  2. **High-fan-in source files**: files imported by the most other files (rough proxy: `grep -l "from <module>\|import <module>"` count).
+     For repos with no clear module graph, take the largest source files by line count instead.
   3. **Public API surface**: files inside `<src>/` or `<lib>/` whose names match the module name in the manifest, plus any file starting with a non-underscore public name (Python convention) or marked `pub` / `export` (Rust / JS / TS).
   4. **Exclude by default**: `tests/`, `test_*.py`, `*.test.*`, `__tests__/`, `fixtures/`, `vendored/`, `node_modules/`, `.venv/`, `dist/`, `build/`, generated files (`*.lock`, `*.min.*`).
 
-  If the 50-file budget is not exhausted after step 3, fill the remaining slots from step 2 by descending fan-in. If the project is smaller than 50 source files in total, include them all and skip the prioritization.
+If the 50-file budget is not exhausted after step 3, fill the remaining slots from step 2 by descending fan-in.
+If the project is smaller than 50 source files in total, include them all and skip the prioritization.
 
 Concatenate their contents into a single context block, prefixed with file paths.
 
 ### 2. Build the audit prompt
 
-Construct a prompt for the external model. The prompt must include:
+Construct a prompt for the external model.
+The prompt must include:
 
 ```
 You are an independent auditor reviewing an artifact that was authored by a different AI model
@@ -88,11 +103,12 @@ Substitution model, read carefully before running the bash:
 
 - Set the shell variable `MODEL` to the validated `EXTERNAL_MODEL` value.
 - Set the shell variable `AUDIT_PROMPT` to the prompt text constructed in step 2, using a quoted heredoc so any characters in the prompt (backticks, dollar signs, quotes) are passed verbatim.
-- The bash block below references these variables exclusively; there are no `<placeholder>` strings to edit inside the code. If you find yourself wanting to edit the code, stop: the substitution happens above the block, not inside it.
+- The bash block below references these variables exclusively; its only placeholder is `<EXTERNAL_MODEL>` in the `MODEL` assignment, and the guard below it stops the run if that placeholder is left in place.
+  If you find yourself wanting to edit the code, stop: substitute only the two assignments at the top of the block (`MODEL` and the heredoc body), never the code below them.
 
 ```bash
-# Substitute above this block:
-MODEL='google/gemini-2.5-pro'          # ← replace with the chosen EXTERNAL_MODEL
+# Substitute these two assignments:
+MODEL='<EXTERNAL_MODEL>' # ← replace with the chosen EXTERNAL_MODEL; left as is, the guard below stops the run
 AUDIT_PROMPT=$(cat <<'__AUDIT_PROMPT_EOF__'
 ... prompt text from step 2 goes here, in full, between the heredoc markers ...
 __AUDIT_PROMPT_EOF__
@@ -140,9 +156,11 @@ fi
 cleanup  # explicit backstop in case the trap is bypassed (e.g. by a future refactor that splits the block).
 ```
 
-`-sS` silences the progress bar but preserves stderr; the captured `CURL_ERR` distinguishes DNS, TLS, auth, and timeout failures. `curl -sS` does not echo request headers, so the `Authorization` value never enters stderr, but verify before adding `-v` or `--trace*` in any future debug branch, as those flags would leak the API key.
+`-sS` silences the progress bar but preserves stderr; the captured `CURL_ERR` distinguishes DNS, TLS, auth, and timeout failures.
+`curl -sS` does not echo request headers, so the `Authorization` value never enters stderr, but verify before adding `-v` or `--trace*` in any future debug branch, as those flags would leak the API key.
 
-The substitution guards reject the three placeholder formats most likely to slip through (`<...>`, `{{...}}`, and the literal ellipsis prefix from the heredoc template) before any network call is made; silent success on placeholder text is no longer possible. The regex format check is duplicated here in bash (in addition to the prose rule above) so a future change that bypasses the prose instructions still cannot pass an arbitrary model ID to OpenRouter.
+The substitution guards reject the three placeholder formats most likely to slip through (`<...>`, `{{...}}`, and the literal ellipsis prefix from the heredoc template) before any network call is made; silent success on placeholder text is no longer possible.
+The regex format check is duplicated here in bash (in addition to the prose rule above) so a future change that bypasses the prose instructions still cannot pass an arbitrary model ID to OpenRouter.
 
 If the call fails (non-zero exit, empty body, or `.error.message` in response):
 - Report the failure verbatim with the captured `CURL_ERR`
@@ -171,13 +189,18 @@ Raw response preserved for convergence analysis.
 
 ## Rules
 
-- Do not interpret or filter the external model's findings. Return them as-is.
-- Do not add your own findings. You are a router, not a reviewer.
-- If OpenRouter returns an error, return the error verbatim. Do not retry or fall back.
+- Do not interpret or filter the external model's findings.
+  Return them as-is.
+- Do not add your own findings.
+  You are a router, not a reviewer.
+- If OpenRouter returns an error, return the error verbatim.
+  Do not retry or fall back.
 - Truncate artifact content if it exceeds **80,000 UTF-8 characters** (as counted by `wc -m`,
   applied to the concatenated context block, file path headers and trailing newlines included)
-  to stay within external model context limits. Character count (not bytes, not tokens) is the
-  canonical unit; tokens vary by model and bytes overcount multi-byte Unicode. When truncating,
+  to stay within external model context limits.
+  Character count (not bytes, not tokens) is the
+  canonical unit; tokens vary by model and bytes overcount multi-byte Unicode.
+  When truncating,
   keep `SKILL.md` and all `agents/` files in full, then truncate `doc/`, `templates/`, `evals/`,
   and example fixtures in that order until the total is under 80K.
 - Never log, echo, or include the API key in any output.
