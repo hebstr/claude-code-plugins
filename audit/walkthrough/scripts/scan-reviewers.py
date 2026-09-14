@@ -29,6 +29,7 @@ SETTINGS_FILES = (
     Path(".claude/settings.json"),
     Path(".claude/settings.local.json"),
 )
+MANAGED_SETTINGS_DIR = Path("/etc/claude-code")
 
 BLACKLIST = {
     "audit:walkthrough",
@@ -49,10 +50,13 @@ SKILL_TOOL_SIGNALS = re.compile(
     re.IGNORECASE,
 )
 BOILERPLATE_SENTENCE = re.compile(
-    r"^(User-invocable\s+ONLY|Does\s+not\s+auto-trigger|Do\s+NOT\s+trigger|Not\s+for)\b",
+    r"^(User-invocable\s+ONLY|Not\s+for|"
+    r"Do(es)?(\s+not|n['\N{RIGHT SINGLE QUOTATION MARK}]t)\s+(use|auto-trigger|trigger))\b",
     re.IGNORECASE,
 )
 ABBREVIATION_END = re.compile(r"\b(e\.g|i\.e|cf|vs)\.$", re.IGNORECASE)
+BRACKETS = (("(", ")"), ("“", "”"), ("«", "»"))
+CONJUNCTION_START = re.compile(r"(or|and|nor)\b")
 CLAUDE_CODE = re.compile(r"\bClaude\s+Code\b", re.IGNORECASE)
 CODE_SIGNALS = re.compile(
     r"\b(code|PR|pull\s+request|python|R\s|javascript|typescript|SQL)\b",
@@ -82,16 +86,16 @@ def installed_plugins():
             if not isinstance(inst, dict):
                 continue
             p = inst.get("installPath")
-            if p and installed_here(inst, cwd, cwd_repo):
+            if isinstance(p, str) and p and installed_here(inst, cwd, cwd_repo):
                 plugins.append((plugin, marketplace, Path(p)))
     return plugins
 
 
 def load_json(path):
     try:
-        with path.open() as f:
+        with path.open(encoding="utf-8-sig") as f:
             return json.load(f)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
         return None
 
 
@@ -116,7 +120,7 @@ def installed_here(inst, cwd, cwd_repo):
     if inst.get("scope") in ("user", "managed"):
         return True
     project = inst.get("projectPath")
-    if not project:
+    if not isinstance(project, str) or not project:
         return False
     if project == cwd:
         return True
@@ -125,7 +129,11 @@ def installed_here(inst, cwd, cwd_repo):
 
 def disabled_plugins():
     enabled = {}
-    for path in SETTINGS_FILES:
+    managed = (
+        MANAGED_SETTINGS_DIR / "managed-settings.json",
+        *sorted(MANAGED_SETTINGS_DIR.glob("managed-settings.d/*.json")),
+    )
+    for path in (*SETTINGS_FILES, *managed):
         settings = load_json(path)
         if isinstance(settings, dict) and isinstance(settings.get("enabledPlugins"), dict):
             enabled.update(settings["enabledPlugins"])
@@ -133,18 +141,23 @@ def disabled_plugins():
 
 
 def declared_skill_dirs(plugin, marketplace, install_path):
-    # a monorepo install path holds sibling plugins too; only the marketplace entry scopes them
-    bundled = catalog_skills(install_path / ".claude-plugin" / "marketplace.json", plugin)
-    if bundled is not None:
-        return skill_dirs(install_path, bundled)
-    catalog = catalog_skills(marketplace_catalog(marketplace), plugin) or []
-    return skill_dirs(install_path, ["skills", *catalog, *manifest_skills(install_path)])
+    entry = catalog_entry(install_path / ".claude-plugin" / "marketplace.json", plugin)
+    if entry is None:
+        entry = catalog_entry(marketplace_catalog(marketplace), plugin) or {}
+    listed = string_list(entry.get("skills"))
+    # a marketplace-root source shares skills/ with sibling plugins: its list is the whole set
+    if entry.get("source") in ("./", ".") and any((install_path / p).exists() for p in listed):
+        return skill_dirs(install_path, listed)
+    return skill_dirs(install_path, ["skills", *listed, *manifest_skills(install_path)])
 
 
 def skill_dirs(install_path, paths):
+    root = Path(os.path.normpath(install_path))
     dirs = []
     for path in paths:
-        directory = install_path / path
+        directory = Path(os.path.normpath(install_path / path))
+        if not directory.is_relative_to(root):
+            continue
         if (directory / "SKILL.md").is_file():
             dirs.append(directory)
         else:
@@ -154,10 +167,13 @@ def skill_dirs(install_path, paths):
 
 def manifest_skills(install_path):
     manifest = load_json(install_path / ".claude-plugin" / "plugin.json")
-    skills = manifest.get("skills") if isinstance(manifest, dict) else None
-    if isinstance(skills, str):
-        return [skills]
-    return [s for s in skills if isinstance(s, str)] if isinstance(skills, list) else []
+    return string_list(manifest.get("skills")) if isinstance(manifest, dict) else []
+
+
+def string_list(value):
+    if isinstance(value, str):
+        return [value]
+    return [s for s in value if isinstance(s, str)] if isinstance(value, list) else []
 
 
 def marketplace_catalog(marketplace):
@@ -171,15 +187,12 @@ def marketplace_catalog(marketplace):
     )
 
 
-def catalog_skills(catalog, plugin):
+def catalog_entry(catalog, plugin):
     data = load_json(catalog) if catalog else None
     entries = data.get("plugins", []) if isinstance(data, dict) else []
     for entry in entries:
-        if not isinstance(entry, dict) or entry.get("name") != plugin:
-            continue
-        skills = entry.get("skills")
-        if isinstance(skills, list):
-            return [s for s in skills if isinstance(s, str)]
+        if isinstance(entry, dict) and entry.get("name") == plugin:
+            return entry
     return None
 
 
@@ -226,7 +239,7 @@ def frontmatter_value(fm, key):
     if not m:
         return ""
     first = m.group(1).strip()
-    parts = [] if re.fullmatch(r"([|>][+-]?)?", first) else [first]
+    parts = [] if re.fullmatch(r"([|>]([1-9]?[+-]?|[+-][1-9]))?", first) else [first]
     for line in fm[m.end() :].split("\n")[1:]:
         if line and not line[0].isspace():
             break
@@ -256,9 +269,12 @@ def sentences(text):
 def continues_sentence(previous, fragment):
     return bool(
         ABBREVIATION_END.search(previous)
-        or previous.count('"') % 2
-        or previous.count("(") > previous.count(")")
-        or fragment[:1].islower()
+        or (previous.count('"') % 2 and '"' in fragment)
+        or any(
+            previous.count(opening) > previous.count(closing) and closing in fragment
+            for opening, closing in BRACKETS
+        )
+        or CONJUNCTION_START.match(fragment)
     )
 
 

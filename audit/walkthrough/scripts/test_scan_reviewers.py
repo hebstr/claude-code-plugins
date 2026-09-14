@@ -74,6 +74,7 @@ def scan(home, project, monkeypatch):
             Path(".claude/settings.local.json"),
         ),
     )
+    monkeypatch.setattr(module, "MANAGED_SETTINGS_DIR", home / "managed")
     monkeypatch.chdir(project)
     return module
 
@@ -118,6 +119,72 @@ def test_marketplace_entry_scopes_monorepo_skills(scan, tmp_path):
     ]
 
 
+def test_marketplace_entry_skills_as_string(scan, tmp_path):
+    root = tmp_path / "cache" / "a"
+    write_json(
+        root / ".claude-plugin" / "marketplace.json",
+        {"plugins": [{"name": "a", "source": "./", "skills": "./a/r"}]},
+    )
+    skill(root / "a" / "r", "r-review", "Review code.")
+    skill(root / "skills" / "b-review", "b-review", "Review code.")
+    install(scan, {"a@m": user_install(root)})
+
+    assert scan.collect_skill_files() == [(str(root / "a" / "r" / "SKILL.md"), "a")]
+
+
+def test_root_source_without_existing_listed_path_scans_default(scan, tmp_path):
+    root = tmp_path / "cache" / "a"
+    write_json(
+        root / ".claude-plugin" / "marketplace.json",
+        {"plugins": [{"name": "a", "source": "./", "skills": ["./missing"]}]},
+    )
+    skill(root / "skills" / "code-review", "code-review", "Review code.")
+    install(scan, {"a@m": user_install(root)})
+
+    assert scan.collect_skill_files() == [(str(root / "skills" / "code-review" / "SKILL.md"), "a")]
+
+
+def test_bundled_marketplace_takes_precedence_over_known_catalog(scan, home, tmp_path):
+    catalog = tmp_path / "marketplaces" / "m"
+    write_json(
+        catalog / ".claude-plugin" / "marketplace.json",
+        {"plugins": [{"name": "a", "source": "./", "skills": ["./other"]}]},
+    )
+    write_json(home / "known_marketplaces.json", {"m": {"installLocation": str(catalog)}})
+    root = tmp_path / "cache" / "a"
+    write_json(
+        root / ".claude-plugin" / "marketplace.json",
+        {"plugins": [{"name": "a", "source": "./", "skills": ["./mine"]}]},
+    )
+    skill(root / "mine", "mine", "Review code.")
+    skill(root / "other", "other", "Review code.")
+    install(scan, {"a@m": user_install(root)})
+
+    assert scan.collect_skill_files() == [(str(root / "mine" / "SKILL.md"), "a")]
+
+
+def test_missing_known_catalog_entry_scans_default(scan, home, tmp_path):
+    write_json(home / "known_marketplaces.json", {"other": {"installLocation": "/nowhere"}})
+    plugin = tmp_path / "cache" / "plug"
+    skill(plugin / "skills" / "code-review", "code-review", "Review code.")
+    install(scan, {"plug@m": user_install(plugin)})
+
+    assert scan.collect_skill_files() == [
+        (str(plugin / "skills" / "code-review" / "SKILL.md"), "plug")
+    ]
+
+
+def test_plugin_json_skills_string_and_escaping_paths(scan, tmp_path):
+    plugin = tmp_path / "cache" / "plug"
+    write_json(plugin / ".claude-plugin" / "plugin.json", {"skills": "./single"})
+    skill(plugin / "single", "single", "Review code.")
+    skill(tmp_path / "cache" / "outside", "outside", "Review code.")
+    install(scan, {"plug@m": user_install(plugin)})
+
+    assert [path for path, _ in scan.collect_skill_files()] == [str(plugin / "single" / "SKILL.md")]
+    assert scan.skill_dirs(plugin, ["../outside", str(tmp_path / "cache" / "outside")]) == []
+
+
 def test_plugin_json_skills_add_to_default_skills_dir(scan, tmp_path):
     plugin = tmp_path / "cache" / "plug"
     write_json(plugin / ".claude-plugin" / "plugin.json", {"skills": ["./extra/", "./single"]})
@@ -158,6 +225,19 @@ def test_project_skills_found_up_to_repo_root(scan, project, capsys, monkeypatch
         ("sub-review", str(sub / ".claude" / "skills" / "sub-review" / "SKILL.md")),
         ("team-review", str(scan.USER_SKILLS_DIR / "team-review" / "SKILL.md")),
     ]
+
+
+def test_project_skills_outside_git_scan_cwd_only(scan, project):
+    assert scan.project_skill_dirs() == [project / ".claude" / "skills"]
+
+
+def test_project_skills_walk_stops_at_git_file(scan, project, monkeypatch):
+    write(project / ".git", "gitdir: /elsewhere\n")
+    sub = project / "sub"
+    sub.mkdir()
+    monkeypatch.chdir(sub)
+
+    assert scan.project_skill_dirs() == [sub / ".claude" / "skills", project / ".claude" / "skills"]
 
 
 def test_skill_without_frontmatter_name_falls_back_to_directory(scan, tmp_path, capsys):
@@ -222,6 +302,24 @@ def test_catalog_entry_scopes_subdir_plugin_skills(scan, home, tmp_path):
     assert scan.collect_skill_files() == [(str(plugin / "code-review" / "SKILL.md"), "bundle")]
 
 
+def test_catalog_entry_with_subdir_source_adds_to_skills_dir(scan, home, tmp_path):
+    catalog = tmp_path / "marketplaces" / "official"
+    write_json(
+        catalog / ".claude-plugin" / "marketplace.json",
+        {"plugins": [{"name": "box", "source": {"source": "url"}, "skills": "./extra"}]},
+    )
+    write_json(home / "known_marketplaces.json", {"official": {"installLocation": str(catalog)}})
+    plugin = tmp_path / "cache" / "box"
+    skill(plugin / "skills" / "a-review", "a-review", "Review code.")
+    skill(plugin / "extra", "extra", "Review code.")
+    install(scan, {"box@official": user_install(plugin)})
+
+    assert [path for path, _ in scan.collect_skill_files()] == [
+        str(plugin / "skills" / "a-review" / "SKILL.md"),
+        str(plugin / "extra" / "SKILL.md"),
+    ]
+
+
 def test_falls_back_to_skills_dir_without_marketplace_entry(scan, tmp_path):
     plugin = tmp_path / "cache" / "plug"
     skill(plugin / "skills" / "code-review", "code-review", "Review code.")
@@ -277,6 +375,17 @@ def test_enabled_plugins_later_settings_files_win(scan, home, project, tmp_path)
 
     assert scan.disabled_plugins() == {"a@m", "c@m"}
     assert [plugin for plugin, _, _ in scan.installed_plugins()] == ["b", "d"]
+
+
+def test_enabled_plugins_managed_settings_win(scan, home, project):
+    write_json(project / ".claude" / "settings.local.json", {"enabledPlugins": {"a@m": True}})
+    write_json(home / "managed" / "managed-settings.json", {"enabledPlugins": {"a@m": False}})
+    write_json(
+        home / "managed" / "managed-settings.d" / "10-team.json",
+        {"enabledPlugins": {"b@m": False}},
+    )
+
+    assert scan.disabled_plugins() == {"a@m", "b@m"}
 
 
 @pytest.fixture
@@ -380,6 +489,32 @@ def test_non_dict_install_is_skipped_silently(scan, tmp_path, capsys):
     assert capsys.readouterr().err == ""
 
 
+def test_wrongly_typed_install_fields_are_skipped(scan, tmp_path):
+    install(
+        scan,
+        {
+            "a@m": [{"scope": "user", "installPath": 5}],
+            "b@m": [{"scope": "project", "projectPath": ["x"], "installPath": str(tmp_path)}],
+        },
+    )
+
+    assert scan.installed_plugins() == []
+
+
+def test_load_json_accepts_byte_order_mark(scan, tmp_path):
+    path = tmp_path / "data.json"
+    path.write_bytes(b'\xef\xbb\xbf{"a": "\xc3\xa9"}')
+
+    assert scan.load_json(path) == {"a": "é"}
+
+
+def test_load_json_rejects_non_utf8(scan, tmp_path):
+    path = tmp_path / "data.json"
+    path.write_bytes(b'{"a": "\xe9"}')
+
+    assert scan.load_json(path) is None
+
+
 def test_missing_manifest_is_silent(scan, capsys):
     assert scan.installed_plugins() == []
     assert capsys.readouterr().err == ""
@@ -415,6 +550,16 @@ def test_classify_ignores_disclaimed_words(scan, description, expected):
         ('Formats tables. Do NOT trigger on "is it wrong? Review this" requests.', False),
         ("Formats tables. Not for writing a parser. or any code review.", False),
         ("Formats tables. Not for tables. Adversarial reviewer of code.", True),
+        ('Does not auto-trigger on 5" screens. Adversarial reviewer of code.', True),
+        ("Not for drafts (see docs. Adversarial reviewer of code.", True),
+        ("Formats tables. Does not auto-trigger on “is it wrong? Review this” requests.", False),
+        ("Formats tables. Does not auto-trigger on « c'est faux ? Audit » requests.", False),
+        ("Not for PRs. posit reviewer that audits R code.", True),
+        ("Formats tables. Do not use for code review.", False),
+        ("Formats tables. Don't use for code review.", False),
+        ("Formats tables. Not for code, i.e. review tools.", False),
+        ("Formats tables. Not for linting, cf. review guides.", False),
+        ("Formats tables. Not for docs vs. review tools.", False),
     ],
 )
 def test_is_reviewer_filters(scan, description, expected):
@@ -435,6 +580,7 @@ def test_clean_description_drops_leading_boilerplate(scan):
     [
         ("name: a\ndescription: |\n  Review code block.", "a", "Review code block."),
         ("name: a\ndescription: >-\n  Review code\n  folded.", "a", "Review code folded."),
+        ("name: a\ndescription: |2\n  Review code.", "a", "Review code."),
         ("name: a\ndescription:\nallowed-tools: Read", "a", ""),
         ("name: a\ndescription: Review code.\nallowedTools: Read", "a", "Review code."),
         (
