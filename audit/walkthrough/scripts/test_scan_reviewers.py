@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -33,11 +34,16 @@ def skill(directory, name, description):
     )
 
 
-def git_init(path):
+def git(*args):
     if shutil.which("git") is None:
         pytest.skip("git not installed")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    subprocess.run(["git", *args], check=True, env=env)
+
+
+def git_init(path):
     path.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    git("init", "-q", str(path))
     return path
 
 
@@ -57,6 +63,7 @@ def project(tmp_path):
 def scan(home, project, monkeypatch):
     module = load_module()
     monkeypatch.setattr(module, "PLUGINS_MANIFEST", home / "installed_plugins.json")
+    monkeypatch.setattr(module, "KNOWN_MARKETPLACES", home / "known_marketplaces.json")
     monkeypatch.setattr(module, "USER_SKILLS_DIR", home / "skills")
     monkeypatch.setattr(
         module,
@@ -105,12 +112,114 @@ def test_marketplace_entry_scopes_monorepo_skills(scan, tmp_path):
     make_monorepo(ggsql)
     install(scan, {"posit-dev@m": user_install(posit), "ggsql@m": user_install(ggsql)})
 
-    assert scan.collect_skill_files() == sorted(
-        [
-            (str(ggsql / "ggsql" / "ggsql" / "SKILL.md"), "ggsql"),
-            (str(posit / "posit-dev" / "code-reviewer" / "SKILL.md"), "posit-dev"),
-        ]
+    assert scan.collect_skill_files() == [
+        (str(posit / "posit-dev" / "code-reviewer" / "SKILL.md"), "posit-dev"),
+        (str(ggsql / "ggsql" / "ggsql" / "SKILL.md"), "ggsql"),
+    ]
+
+
+def test_plugin_json_skills_add_to_default_skills_dir(scan, tmp_path):
+    plugin = tmp_path / "cache" / "plug"
+    write_json(plugin / ".claude-plugin" / "plugin.json", {"skills": ["./extra/", "./single"]})
+    skill(plugin / "skills" / "a-review", "a-review", "Review code.")
+    skill(plugin / "extra" / "b-review", "b-review", "Review code.")
+    skill(plugin / "single", "single", "Review code.")
+    install(scan, {"plug@m": user_install(plugin)})
+
+    assert [path for path, _ in scan.collect_skill_files()] == [
+        str(plugin / "skills" / "a-review" / "SKILL.md"),
+        str(plugin / "extra" / "b-review" / "SKILL.md"),
+        str(plugin / "single" / "SKILL.md"),
+    ]
+
+
+def test_first_install_in_manifest_order_wins(scan, tmp_path, capsys):
+    newer, older = tmp_path / "cache" / "plug" / "1.10.0", tmp_path / "cache" / "plug" / "1.9.0"
+    skill(newer / "skills" / "code-review", "code-review", "Review code.")
+    skill(older / "skills" / "code-review", "code-review", "Review code.")
+    install(scan, {"plug@m": user_install(older) + user_install(newer)})
+
+    candidates = run_main(scan, capsys)["candidates"]
+
+    assert [c["path"] for c in candidates] == [str(older / "skills" / "code-review" / "SKILL.md")]
+
+
+def test_project_skills_found_up_to_repo_root(scan, project, capsys, monkeypatch):
+    git_init(project)
+    sub = project / "sub"
+    skill(project / ".claude" / "skills" / "team-review", "team-review", "Review code.")
+    skill(sub / ".claude" / "skills" / "sub-review", "sub-review", "Review code.")
+    skill(scan.USER_SKILLS_DIR / "team-review", "team-review", "Review code for bugs.")
+    monkeypatch.chdir(sub)
+
+    candidates = run_main(scan, capsys)["candidates"]
+
+    assert [(c["name"], c["path"]) for c in candidates] == [
+        ("sub-review", str(sub / ".claude" / "skills" / "sub-review" / "SKILL.md")),
+        ("team-review", str(scan.USER_SKILLS_DIR / "team-review" / "SKILL.md")),
+    ]
+
+
+def test_skill_without_frontmatter_name_falls_back_to_directory(scan, tmp_path, capsys):
+    plugin = tmp_path / "cache" / "plug"
+    write(plugin / "skills" / "code-review" / "SKILL.md", "---\ndescription: Review code.\n---\n")
+    write(
+        scan.USER_SKILLS_DIR / "mine-review" / "SKILL.md", "---\ndescription: Review code.\n---\n"
     )
+    install(scan, {"plug@m": user_install(plugin)})
+
+    names = [c["name"] for c in run_main(scan, capsys)["candidates"]]
+
+    assert names == ["mine-review", "plug:code-review"]
+
+
+def test_main_applies_every_exclusion(scan, home, tmp_path, capsys):
+    other = git_init(tmp_path / "other")
+    cache = tmp_path / "cache"
+    for plugin in ("kept", "off", "elsewhere"):
+        skill(cache / plugin / "skills" / "code-review", "code-review", "Review code.")
+    skill(cache / "kept" / "skills" / "table-review", "table-review", "Formats tables.")
+    write_json(home / "settings.json", {"enabledPlugins": {"off@m": False}})
+    elsewhere = {
+        "scope": "project",
+        "projectPath": str(other),
+        "installPath": str(cache / "elsewhere"),
+    }
+    install(
+        scan,
+        {
+            "kept@m": user_install(cache / "kept"),
+            "off@m": user_install(cache / "off"),
+            "elsewhere@m": [elsewhere],
+        },
+    )
+
+    names = [c["name"] for c in run_main(scan, capsys)["candidates"]]
+
+    assert names == ["kept:code-review"]
+
+
+def test_catalog_entry_scopes_subdir_plugin_skills(scan, home, tmp_path):
+    catalog = tmp_path / "marketplaces" / "official"
+    write_json(
+        catalog / ".claude-plugin" / "marketplace.json",
+        {
+            "plugins": [
+                {
+                    "name": "bundle",
+                    "source": {"source": "git-subdir", "path": "skills"},
+                    "skills": ["./code-review"],
+                }
+            ]
+        },
+    )
+    write_json(home / "known_marketplaces.json", {"official": {"installLocation": str(catalog)}})
+    plugin = tmp_path / "cache" / "bundle"
+    skill(plugin / "code-review", "code-review", "Review code.")
+    skill(plugin / "undeclared", "undeclared", "Review code.")
+    install(scan, {"bundle@official": user_install(plugin)})
+
+    assert scan.collect_skill_files() == [(str(plugin / "code-review" / "SKILL.md"), "bundle")]
 
 
 def test_falls_back_to_skills_dir_without_marketplace_entry(scan, tmp_path):
@@ -167,7 +276,7 @@ def test_enabled_plugins_later_settings_files_win(scan, home, project, tmp_path)
     install(scan, {key: user_install(tmp_path / key) for key in ("a@m", "b@m", "c@m", "d@m")})
 
     assert scan.disabled_plugins() == {"a@m", "c@m"}
-    assert [plugin for plugin, _ in scan.installed_plugins()] == ["b", "d"]
+    assert [plugin for plugin, _, _ in scan.installed_plugins()] == ["b", "d"]
 
 
 @pytest.fixture
@@ -199,6 +308,34 @@ def test_installed_here(scan, repos, inst, expected):
     resolved = {key: value.format(**paths) for key, value in inst.items()}
 
     assert scan.installed_here(resolved, cwd, scan.repo_id(cwd)) is expected
+
+
+def test_installed_here_matches_worktree_of_install_project(scan, tmp_path):
+    main = git_init(tmp_path / "main")
+    git(
+        "-C",
+        str(main),
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "--allow-empty",
+        "-m",
+        "init",
+    )
+    worktree = tmp_path / "worktree"
+    git("-C", str(main), "worktree", "add", "-q", str(worktree))
+
+    inst = {"scope": "local", "projectPath": str(main)}
+    assert scan.installed_here(inst, str(worktree), scan.repo_id(str(worktree)))
+
+
+def test_repo_id_ignores_inherited_git_dir(scan, tmp_path, monkeypatch):
+    monkeypatch.setenv("GIT_DIR", str(git_init(tmp_path / "other") / ".git"))
+
+    assert scan.repo_id(str(Path.cwd())) is None
 
 
 def test_installed_here_outside_git_matches_exact_path_only(scan, tmp_path):
@@ -239,7 +376,7 @@ def test_non_dict_install_is_skipped_silently(scan, tmp_path, capsys):
     target = tmp_path / "cache" / "a"
     install(scan, {"a@m": ["oops", {"scope": "user", "installPath": str(target)}]})
 
-    assert scan.installed_plugins() == [("a", target)]
+    assert scan.installed_plugins() == [("a", "m", target)]
     assert capsys.readouterr().err == ""
 
 
@@ -253,6 +390,7 @@ def test_missing_manifest_is_silent(scan, capsys):
     [
         ("Code reviewer. Not for SKILL.md files.", "code"),
         ("Reviews Claude Code hooks and settings.json", "unknown"),
+        ("Formats tables. Not for code review (e.g. PR audits).", "unknown"),
         (
             'User-invocable ONLY via `/x`. Does not auto-trigger on "audit MCP server". '
             "Adversarial reviewer for MCP servers: reads tool descriptions and code.",
@@ -270,6 +408,13 @@ def test_classify_ignores_disclaimed_words(scan, description, expected):
         ("Does not auto-trigger on review", False),
         ("Critical code review; see tutorial link", True),
         ("An interactive tutorial to review code", False),
+        (
+            'Formats tables. Does not auto-trigger on "is it wrong?", "review it", or e.g. audit.',
+            False,
+        ),
+        ('Formats tables. Do NOT trigger on "is it wrong? Review this" requests.', False),
+        ("Formats tables. Not for writing a parser. or any code review.", False),
+        ("Formats tables. Not for tables. Adversarial reviewer of code.", True),
     ],
 )
 def test_is_reviewer_filters(scan, description, expected):
@@ -306,6 +451,16 @@ def test_parse_frontmatter_forms(scan, tmp_path, frontmatter, name, description)
 
     assert meta is not None
     assert (meta["name"], meta["description"]) == (name, description)
+
+
+def test_parse_frontmatter_with_byte_order_mark(scan, tmp_path):
+    path = tmp_path / "SKILL.md"
+    path.write_bytes(b"\xef\xbb\xbf" + b"---\nname: a\ndescription: Review code.\n---\n")
+
+    meta = scan.parse_frontmatter(str(path))
+
+    assert meta is not None
+    assert meta["name"] == "a"
 
 
 def test_parse_frontmatter_without_frontmatter(scan, tmp_path):

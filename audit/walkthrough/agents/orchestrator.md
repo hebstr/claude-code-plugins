@@ -35,8 +35,8 @@ Note: `${CLAUDE_SKILL_DIR}` is the absolute path to this skill's directory.
 If your runtime does not export it as an environment variable, substitute it with the path announced by Claude Code at the top of the skill prompt (`Base directory for this skill: <path>`).
 
 It returns JSON with `candidates`: each candidate has `name`, `category` (`code` / `skill-tool` / `unknown`), `path`, and `description_excerpt`.
-The script scans skills under `~/.claude/skills/` and, for each plugin in `~/.claude/plugins/installed_plugins.json` installed for this project (user or managed scope, or a project/local install matching the current project) and not set to `false` in `enabledPlugins` (user, project and local settings), the skills its marketplace entry declares (falling back to `<installPath>/skills/*/`), filters by name+description heuristics, and excludes self-references (`audit:walkthrough`, `audit:blindspot`).
-Plugin skills are named `plugin:skill`; user skills keep their bare name.
+The script scans skills under `~/.claude/skills/`, under `.claude/skills/` from the working directory up to its repository root, and, for each plugin in `~/.claude/plugins/installed_plugins.json` installed for this project (user or managed scope, or a project/local install matching the current project) and not set to `false` in `enabledPlugins` (user, project and local settings), the skills its marketplace entry declares, read from the install path or else from the marketplace catalog in `~/.claude/plugins/known_marketplaces.json` (when the entry does not ship in the install path, alongside `<installPath>/skills/*/` and the paths `plugin.json` declares), filters by name+description heuristics, and excludes self-references (`audit:walkthrough`, `audit:blindspot`).
+Plugin skills are named `plugin:skill`; user and project skills keep their bare name, and a personal skill shadows a project skill of the same name.
 If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path).
 Do not invent names.
 

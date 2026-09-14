@@ -17,8 +17,9 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   The assignment now holds an `<EXTERNAL_MODEL>` placeholder, which the existing guard rejects.
 - `audit`: the reviewer scan shared by `walkthrough` and `blindspot` returned bare skill names, globbed every `SKILL.md` under a plugin's install path, and dropped distinct skills sharing a name.
   In a monorepo marketplace this credited a skill to a sibling plugin and offered skills from a stale copy.
-  It now reads the skills each plugin's marketplace entry declares (falling back to `skills/*/`), names them `plugin:skill` after their directory as Claude Code does, and deduplicates and excludes self-references on that qualified name.
+  It now reads the skills each plugin's marketplace entry declares, whether the entry ships in the install path or only in the marketplace catalog (a `git-subdir` skill bundle), plus `skills/*/` and the paths `plugin.json` declares when the entry does not ship with the plugin, names them `plugin:skill` after their directory as Claude Code does, and deduplicates and excludes self-references on that qualified name.
   Plugins set to `false` in `enabledPlugins` (user, project or local settings), and project or local installs belonging to another project, are no longer offered.
+  Project skills under `.claude/skills/`, from the working directory up to the repository root, are offered too, and a skill with no frontmatter `name` or a byte order mark is no longer skipped.
   A corrupt or unexpectedly shaped plugin manifest yields an empty candidate list and a warning on stderr instead of a traceback.
   Filtering, classification and the description excerpt ignore trigger and exclusion clauses ("Does not auto-trigger", "Not for") and the words "Claude Code", which made a skill match on words it disclaims, and the skill-tool signals accept plurals ("MCP servers").
   A bare mention of "tutorial" no longer excludes a reviewer; only "interactive tutorial" does.

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Discover available reviewer skills at runtime.
 
-Scans installed Claude Code skills (user-installed under ~/.claude/skills/ and
-the skills each plugin in ~/.claude/plugins/installed_plugins.json declares in
-its marketplace entry, unless disabled in enabledPlugins), filters for
+Scans installed Claude Code skills (user skills under ~/.claude/skills/,
+project skills under .claude/skills/ from the working directory up to its
+repository root, and the skills each plugin in
+~/.claude/plugins/installed_plugins.json declares in its marketplace entry or
+plugin.json, unless disabled in enabledPlugins), filters for
 skills whose name and description match reviewer patterns, classifies each
 candidate as `code`, `skill-tool`, or `unknown`, and emits JSON to stdout.
 Plugin skills are named `plugin:skill`.
@@ -13,12 +15,14 @@ Used by agents/orchestrator.md when --reviewer is omitted.
 
 import glob
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 PLUGINS_MANIFEST = Path("~/.claude/plugins/installed_plugins.json").expanduser()
+KNOWN_MARKETPLACES = Path("~/.claude/plugins/known_marketplaces.json").expanduser()
 USER_SKILLS_DIR = Path("~/.claude/skills").expanduser()
 SETTINGS_FILES = (
     Path("~/.claude/settings.json").expanduser(),
@@ -48,6 +52,7 @@ BOILERPLATE_SENTENCE = re.compile(
     r"^(User-invocable\s+ONLY|Does\s+not\s+auto-trigger|Do\s+NOT\s+trigger|Not\s+for)\b",
     re.IGNORECASE,
 )
+ABBREVIATION_END = re.compile(r"\b(e\.g|i\.e|cf|vs)\.$", re.IGNORECASE)
 CLAUDE_CODE = re.compile(r"\bClaude\s+Code\b", re.IGNORECASE)
 CODE_SIGNALS = re.compile(
     r"\b(code|PR|pull\s+request|python|R\s|javascript|typescript|SQL)\b",
@@ -72,13 +77,13 @@ def installed_plugins():
             continue
         if key in disabled:
             continue
-        plugin = key.split("@")[0]
+        plugin, _, marketplace = key.partition("@")
         for inst in installs:
             if not isinstance(inst, dict):
                 continue
             p = inst.get("installPath")
             if p and installed_here(inst, cwd, cwd_repo):
-                plugins.append((plugin, Path(p)))
+                plugins.append((plugin, marketplace, Path(p)))
     return plugins
 
 
@@ -98,10 +103,13 @@ def repo_id(path):
             capture_output=True,
             text=True,
             check=False,
+            env={k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
         )
     except OSError:
         return None
-    return out.stdout.strip() or None if out.returncode == 0 else None
+    if out.returncode != 0:
+        return None
+    return out.stdout.strip() or None
 
 
 def installed_here(inst, cwd, cwd_repo):
@@ -124,34 +132,84 @@ def disabled_plugins():
     return {key for key, on in enabled.items() if on is False}
 
 
-def declared_skill_dirs(plugin, install_path):
+def declared_skill_dirs(plugin, marketplace, install_path):
     # a monorepo install path holds sibling plugins too; only the marketplace entry scopes them
-    marketplace = load_json(install_path / ".claude-plugin" / "marketplace.json")
-    entries = marketplace.get("plugins", []) if isinstance(marketplace, dict) else []
+    bundled = catalog_skills(install_path / ".claude-plugin" / "marketplace.json", plugin)
+    if bundled is not None:
+        return skill_dirs(install_path, bundled)
+    catalog = catalog_skills(marketplace_catalog(marketplace), plugin) or []
+    return skill_dirs(install_path, ["skills", *catalog, *manifest_skills(install_path)])
+
+
+def skill_dirs(install_path, paths):
+    dirs = []
+    for path in paths:
+        directory = install_path / path
+        if (directory / "SKILL.md").is_file():
+            dirs.append(directory)
+        else:
+            dirs.extend(Path(d) for d in sorted(glob.glob(f"{glob.escape(str(directory))}/*/")))  # noqa: PTH207
+    return dirs
+
+
+def manifest_skills(install_path):
+    manifest = load_json(install_path / ".claude-plugin" / "plugin.json")
+    skills = manifest.get("skills") if isinstance(manifest, dict) else None
+    if isinstance(skills, str):
+        return [skills]
+    return [s for s in skills if isinstance(s, str)] if isinstance(skills, list) else []
+
+
+def marketplace_catalog(marketplace):
+    known = load_json(KNOWN_MARKETPLACES)
+    entry = known.get(marketplace) if isinstance(known, dict) else None
+    location = entry.get("installLocation") if isinstance(entry, dict) else None
+    return (
+        Path(location) / ".claude-plugin" / "marketplace.json"
+        if isinstance(location, str)
+        else None
+    )
+
+
+def catalog_skills(catalog, plugin):
+    data = load_json(catalog) if catalog else None
+    entries = data.get("plugins", []) if isinstance(data, dict) else []
     for entry in entries:
         if not isinstance(entry, dict) or entry.get("name") != plugin:
             continue
         skills = entry.get("skills")
         if isinstance(skills, list):
-            return [install_path / s for s in skills if isinstance(s, str)]
-    return [Path(d) for d in glob.glob(f"{glob.escape(str(install_path))}/skills/*/")]  # noqa: PTH207
+            return [s for s in skills if isinstance(s, str)]
+    return None
+
+
+def project_skill_dirs():
+    cwd = Path.cwd()
+    dirs = []
+    for directory in (cwd, *cwd.parents):
+        dirs.append(directory / ".claude" / "skills")
+        if (directory / ".git").exists():
+            return dirs
+    return dirs[:1]
 
 
 def collect_skill_files():
+    # insertion order is precedence: personal over project skills, then plugins in manifest order
     files = {}
-    for plugin, install_path in installed_plugins():
-        for skill_dir in declared_skill_dirs(plugin, install_path):
+    for skills_dir in (USER_SKILLS_DIR, *project_skill_dirs()):
+        for path in sorted(glob.glob(f"{glob.escape(str(skills_dir))}/*/SKILL.md")):  # noqa: PTH207
+            files.setdefault(path, None)
+    for plugin, marketplace, install_path in installed_plugins():
+        for skill_dir in declared_skill_dirs(plugin, marketplace, install_path):
             skill_file = skill_dir / "SKILL.md"
             if skill_file.is_file():
                 files.setdefault(str(skill_file), plugin)
-    for path in glob.glob(f"{glob.escape(str(USER_SKILLS_DIR))}/*/SKILL.md"):  # noqa: PTH207
-        files.setdefault(path, None)
-    return sorted(files.items())
+    return list(files.items())
 
 
 def parse_frontmatter(path):
     try:
-        text = Path(path).read_text(errors="ignore")
+        text = Path(path).read_text(encoding="utf-8-sig", errors="ignore")
     except OSError:
         return None
     m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
@@ -181,9 +239,27 @@ def frontmatter_value(fm, key):
 
 def clean_description(description):
     # trigger and exclusion clauses name the very words the skill must not match on
-    sentences = re.split(r"(?<=[.!?])\s+", " ".join(description.split()))
-    kept = " ".join(s for s in sentences if not BOILERPLATE_SENTENCE.match(s))
+    kept = " ".join(s for s in sentences(description) if not BOILERPLATE_SENTENCE.match(s))
     return " ".join(CLAUDE_CODE.sub("", kept).split())
+
+
+def sentences(text):
+    parts = []
+    for fragment in re.split(r"(?<=[.!?])\s+", " ".join(text.split())):
+        if parts and continues_sentence(parts[-1], fragment):
+            parts[-1] = f"{parts[-1]} {fragment}"
+        else:
+            parts.append(fragment)
+    return parts
+
+
+def continues_sentence(previous, fragment):
+    return bool(
+        ABBREVIATION_END.search(previous)
+        or previous.count('"') % 2
+        or previous.count("(") > previous.count(")")
+        or fragment[:1].islower()
+    )
 
 
 def classify(description):
@@ -205,10 +281,11 @@ def main():
     candidates = []
     for path, plugin in collect_skill_files():
         meta = parse_frontmatter(path)
-        if not meta or not meta["name"]:
+        if not meta:
             continue
+        directory = Path(path).parent.name
         # Claude Code registers plugin skills under their directory name, not the frontmatter name
-        name = f"{plugin}:{Path(path).parent.name}" if plugin else meta["name"]
+        name = f"{plugin}:{directory}" if plugin else meta["name"] or directory
         if name in seen_names or name in BLACKLIST:
             continue
         seen_names.add(name)

@@ -83,7 +83,7 @@ If neither resolution succeeds, report the failure to the user and ask them to p
 Do not invent reviewer names.
 
 The script returns JSON with `candidates`: each candidate has `name`, `category` (`code` / `skill-tool` / `unknown`), `path`, and `description_excerpt`.
-Plugin skills are named `plugin:skill`, user skills keep their bare name, and self-references (`audit:walkthrough`, `audit:blindspot`) are excluded.
+Plugin skills are named `plugin:skill`, user and project skills keep their bare name, and self-references (`audit:walkthrough`, `audit:blindspot`) are excluded.
 If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path).
 
 **Step 2, validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`).
