@@ -13,13 +13,13 @@ claude plugin install workflow@hebstr
 
 ## Skills
 
-  | Skill                               | Invocation                | Purpose                                                                                                                                                                                                      |
-  | ----------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-  | [`sync`](./sync/)                   | `/workflow:sync`          | Scans all project files for staleness and updates them. Always runs a cross-repo semantic consistency pass with parallel agents.                                                                             |
-  | [`write`](./write/)                 | `/workflow:write`         | Strips AI writing patterns and rewrites prose to read naturally. Routes to a French or English reference per text language; includes a bilingual review mode (FR-EN parity, typography, false friends).      |
-  | [`continue`](./continue/)           | `/workflow:continue`      | Flushes durable facts to memory, updates `.claude/PLAN.md`, and prints a continuation prompt. No handoff document: PLAN.md and memory are authoritative.                                                     |
-  | [`reco`](./reco/)                   | `/workflow:reco`          | Deep recommendation backed by external sources. Parallel agents pull official docs (WebFetch) and community practice (WebSearch); the skill synthesizes a structured recommendation with verified citations. |
-  | [`doc-structure`](./doc-structure/) | `/workflow:doc-structure` | Audits documentation layout (CLAUDE.md vs README.md), proposes verbatim migrations of misplaced prose, and updates the CLAUDE.md index.                                                                      |
+  | Skill                               | Invocation                                 | Purpose                                                                                                                                                                                                      |
+  | ----------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | [`sync`](./sync/)                   | `/workflow:sync`                           | Scans all project files for staleness and updates them. Always runs a cross-repo semantic consistency pass with parallel agents.                                                                             |
+  | [`write`](./write/)                 | `/workflow:write`                          | Strips AI writing patterns and rewrites prose to read naturally. Routes to a French or English reference per text language; includes a bilingual review mode (FR-EN parity, typography, false friends).      |
+  | [`continue`](./continue/)           | `/workflow:continue`                       | Flushes durable facts to memory, updates `.claude/PLAN.md`, and prints a continuation prompt. No handoff document: PLAN.md and memory are authoritative.                                                     |
+  | [`reco`](./reco/)                   | `/workflow:reco`                           | Deep recommendation backed by external sources. Parallel agents pull official docs (WebFetch) and community practice (WebSearch); the skill synthesizes a structured recommendation with verified citations. |
+  | [`doc-structure`](./doc-structure/) | `/workflow:doc-structure [<project-path>]` | Audits documentation layout (CLAUDE.md vs README.md), proposes verbatim migrations of misplaced prose, and updates the CLAUDE.md index.                                                                      |
 
 ## Per-skill details
 
