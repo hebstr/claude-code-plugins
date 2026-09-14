@@ -218,7 +218,7 @@ The example below demonstrates the target density.
 Example:
 > Context: personal (detected from path ~/scripts/).
 Reviewer: critical-code-reviewer (calibrated).
-Ouroboros 0.38.2 ✓ (consensus enabled).
+Ouroboros 0.54.4 ✓ (consensus enabled).
 Author's defense active on 4/6 findings.
 Severity reordering applied: 2 Blocking first.
 Batch mode: active (32 findings ≥ 15).

@@ -34,6 +34,7 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 ### Changed
 
 - `audit`: the `walkthrough` orchestrator caps the reviewer report at 25 findings instead of 15, so the automatic batch triage (15 findings or more) can fire on a capped report rather than only at exactly 15.
+- `audit`: the Ouroboros bridge's last tested version (`MAX_TESTED`) is 0.54.4 instead of 0.38.2, so an up-to-date install no longer warns on every walkthrough; the QA threshold stays unvalidated against that version.
 - `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
 
 ## [0.1.1] - 2026-06-03

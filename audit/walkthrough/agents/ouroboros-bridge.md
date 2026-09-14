@@ -20,7 +20,7 @@ Every anomaly is surfaced; never silently downgraded.
 
 ```
 MIN_OUROBOROS        = "0.38.2"
-MAX_TESTED           = "0.38.2"
+MAX_TESTED           = "0.54.4"
 CACHE_DIR            = "~/.claude/plugins/cache/ouroboros/ouroboros/"
 QA_PASS_THRESHOLD    = 0.8     # score ≥ this → QA passes (matches ouroboros_qa default)
 DRIFT_WARN_THRESHOLD = 0.3     # drift_score > this → surface as warning
@@ -29,6 +29,7 @@ DRIFT_WARN_THRESHOLD = 0.3     # drift_score > this → surface as warning
 The two threshold constants are LLM-produced score interpretations and may drift across model versions.
 They are calibrated against Ouroboros `MAX_TESTED`.
 When bumping `MAX_TESTED`, re-validate the thresholds against the new model behaviour and adjust if needed; do not silently inherit the prior values.
+Validated against 0.54.4 on 2026-09-15: detection, L1, L2 through `ouroboros_start_evaluate` and `ouroboros_job_wait`, the final evaluate and the drift check; `QA_PASS_THRESHOLD` was not exercised, and `DRIFT_WARN_THRESHOLD` fired on a seed unrelated to the reviewed changes, so neither threshold is recalibrated.
 
 Baseline: all walkthrough features require ≥ `MIN_OUROBOROS`.
 There is no per-feature compatibility table: if the version is below the floor, the bridge reports Ouroboros unavailable in full.
