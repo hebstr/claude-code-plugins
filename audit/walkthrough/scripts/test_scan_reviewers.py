@@ -1,0 +1,314 @@
+import importlib.util
+import json
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+SCRIPT = Path(__file__).with_name("scan-reviewers.py")
+
+
+def load_module():
+    spec = importlib.util.spec_from_file_location("scan_reviewers", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def write(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return path
+
+
+def write_json(path, data):
+    return write(path, json.dumps(data))
+
+
+def skill(directory, name, description):
+    return write(
+        directory / "SKILL.md", f"---\nname: {name}\ndescription: {description}\n---\nbody\n"
+    )
+
+
+def git_init(path):
+    if shutil.which("git") is None:
+        pytest.skip("git not installed")
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    return path
+
+
+@pytest.fixture
+def home(tmp_path):
+    return tmp_path / "home"
+
+
+@pytest.fixture
+def project(tmp_path):
+    path = tmp_path / "project"
+    path.mkdir()
+    return path
+
+
+@pytest.fixture
+def scan(home, project, monkeypatch):
+    module = load_module()
+    monkeypatch.setattr(module, "PLUGINS_MANIFEST", home / "installed_plugins.json")
+    monkeypatch.setattr(module, "USER_SKILLS_DIR", home / "skills")
+    monkeypatch.setattr(
+        module,
+        "SETTINGS_FILES",
+        (
+            home / "settings.json",
+            Path(".claude/settings.json"),
+            Path(".claude/settings.local.json"),
+        ),
+    )
+    monkeypatch.chdir(project)
+    return module
+
+
+def install(scan, plugins):
+    write_json(scan.PLUGINS_MANIFEST, {"version": 2, "plugins": plugins})
+
+
+def user_install(path):
+    return [{"scope": "user", "installPath": str(path)}]
+
+
+def run_main(scan, capsys):
+    scan.main()
+    return json.loads(capsys.readouterr().out)
+
+
+def make_monorepo(root):
+    write_json(
+        root / ".claude-plugin" / "marketplace.json",
+        {
+            "plugins": [
+                {"name": "posit-dev", "source": "./", "skills": ["./posit-dev/code-reviewer"]},
+                {"name": "ggsql", "source": "./", "skills": ["./ggsql/ggsql"]},
+            ]
+        },
+    )
+    skill(root / "posit-dev" / "code-reviewer", "code-reviewer", "Review code.")
+    skill(root / "ggsql" / "ggsql", "ggsql", "Write SQL.")
+    skill(root / "tests" / "fixtures" / "skills" / "fake-review", "fake-review", "Review code.")
+
+
+def test_marketplace_entry_scopes_monorepo_skills(scan, tmp_path):
+    posit, ggsql = tmp_path / "cache" / "posit-dev", tmp_path / "cache" / "ggsql"
+    make_monorepo(posit)
+    make_monorepo(ggsql)
+    install(scan, {"posit-dev@m": user_install(posit), "ggsql@m": user_install(ggsql)})
+
+    assert scan.collect_skill_files() == sorted(
+        [
+            (str(ggsql / "ggsql" / "ggsql" / "SKILL.md"), "ggsql"),
+            (str(posit / "posit-dev" / "code-reviewer" / "SKILL.md"), "posit-dev"),
+        ]
+    )
+
+
+def test_falls_back_to_skills_dir_without_marketplace_entry(scan, tmp_path):
+    plugin = tmp_path / "cache" / "plug"
+    skill(plugin / "skills" / "code-review", "code-review", "Review code.")
+    skill(plugin / "nested" / "deep", "deep-review", "Review code.")
+    install(scan, {"plug@m": user_install(plugin)})
+
+    assert scan.collect_skill_files() == [
+        (str(plugin / "skills" / "code-review" / "SKILL.md"), "plug")
+    ]
+
+
+def test_plugin_skills_named_after_directory_user_skills_after_frontmatter(scan, tmp_path, capsys):
+    plugin = tmp_path / "cache" / "plug"
+    skill(plugin / "skills" / "code-review", "something-else", "Review code for bugs.")
+    skill(scan.USER_SKILLS_DIR / "mine", "my-review", "Review code for bugs.")
+    install(scan, {"plug@m": user_install(plugin)})
+
+    names = [c["name"] for c in run_main(scan, capsys)["candidates"]]
+
+    assert names == ["my-review", "plug:code-review"]
+
+
+def test_same_skill_name_in_two_plugins_is_kept_twice(scan, tmp_path, capsys):
+    a, b = tmp_path / "cache" / "a", tmp_path / "cache" / "b"
+    skill(a / "skills" / "code-review", "code-review", "Review code.")
+    skill(b / "skills" / "code-review", "code-review", "Review code.")
+    install(scan, {"a@m": user_install(a), "b@m": user_install(b)})
+
+    names = [c["name"] for c in run_main(scan, capsys)["candidates"]]
+
+    assert names == ["a:code-review", "b:code-review"]
+
+
+def test_blacklist_matches_qualified_name(scan, tmp_path, capsys, monkeypatch):
+    plugin = tmp_path / "cache" / "audit"
+    skill(plugin / "skills" / "code-review", "code-review", "Review code.")
+    skill(plugin / "skills" / "other-review", "other-review", "Review code.")
+    install(scan, {"audit@m": user_install(plugin)})
+    monkeypatch.setattr(scan, "BLACKLIST", {"audit:code-review"})
+
+    names = [c["name"] for c in run_main(scan, capsys)["candidates"]]
+
+    assert names == ["audit:other-review"]
+
+
+def test_enabled_plugins_later_settings_files_win(scan, home, project, tmp_path):
+    write_json(
+        home / "settings.json", {"enabledPlugins": {"a@m": False, "b@m": False, "c@m": True}}
+    )
+    write_json(project / ".claude" / "settings.json", {"enabledPlugins": {"b@m": True}})
+    write_json(project / ".claude" / "settings.local.json", {"enabledPlugins": {"c@m": False}})
+    install(scan, {key: user_install(tmp_path / key) for key in ("a@m", "b@m", "c@m", "d@m")})
+
+    assert scan.disabled_plugins() == {"a@m", "c@m"}
+    assert [plugin for plugin, _ in scan.installed_plugins()] == ["b", "d"]
+
+
+@pytest.fixture
+def repos(project, tmp_path):
+    git_init(project)
+    subdir = project / "sub"
+    plain = tmp_path / "plain"
+    subdir.mkdir()
+    plain.mkdir()
+    return {"subdir": subdir, "other": git_init(tmp_path / "other"), "plain": plain}
+
+
+@pytest.mark.parametrize(
+    ("inst", "expected"),
+    [
+        ({"scope": "user"}, True),
+        ({"scope": "managed"}, True),
+        ({"scope": "project", "projectPath": "{cwd}"}, True),
+        ({"scope": "local", "projectPath": "{subdir}"}, True),
+        ({"scope": "project", "projectPath": "{other}"}, False),
+        ({"scope": "project", "projectPath": "{plain}"}, False),
+        ({"scope": "project"}, False),
+        ({}, False),
+    ],
+)
+def test_installed_here(scan, repos, inst, expected):
+    cwd = str(Path.cwd())
+    paths = {"cwd": cwd, **{key: str(value) for key, value in repos.items()}}
+    resolved = {key: value.format(**paths) for key, value in inst.items()}
+
+    assert scan.installed_here(resolved, cwd, scan.repo_id(cwd)) is expected
+
+
+def test_installed_here_outside_git_matches_exact_path_only(scan, tmp_path):
+    cwd = str(Path.cwd())
+    other = str(git_init(tmp_path / "other"))
+
+    assert scan.repo_id(cwd) is None
+    assert scan.installed_here({"scope": "project", "projectPath": cwd}, cwd, None)
+    assert not scan.installed_here({"scope": "project", "projectPath": other}, cwd, None)
+
+
+@pytest.mark.parametrize(
+    ("content", "warning"),
+    [
+        ('{"version": 2, "plugins": {', "unreadable plugin manifest"),
+        ('{"version": 2, "plugins": []}', "unreadable plugin manifest"),
+        ("[]", "unreadable plugin manifest"),
+        (
+            '{"version": 1, "plugins": {"audit@hebstr": {"installPath": "/x"}}}',
+            "skipping malformed manifest entry audit@hebstr",
+        ),
+    ],
+)
+def test_malformed_manifest_warns_and_yields_nothing(scan, capsys, content, warning):
+    write(scan.PLUGINS_MANIFEST, content)
+
+    assert scan.installed_plugins() == []
+    assert warning in capsys.readouterr().err
+
+
+def test_malformed_manifest_still_emits_json(scan, capsys):
+    write(scan.PLUGINS_MANIFEST, "{")
+
+    assert run_main(scan, capsys)["count"] == 0
+
+
+def test_non_dict_install_is_skipped_silently(scan, tmp_path, capsys):
+    target = tmp_path / "cache" / "a"
+    install(scan, {"a@m": ["oops", {"scope": "user", "installPath": str(target)}]})
+
+    assert scan.installed_plugins() == [("a", target)]
+    assert capsys.readouterr().err == ""
+
+
+def test_missing_manifest_is_silent(scan, capsys):
+    assert scan.installed_plugins() == []
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        ("Code reviewer. Not for SKILL.md files.", "code"),
+        ("Reviews Claude Code hooks and settings.json", "unknown"),
+        (
+            'User-invocable ONLY via `/x`. Does not auto-trigger on "audit MCP server". '
+            "Adversarial reviewer for MCP servers: reads tool descriptions and code.",
+            "skill-tool",
+        ),
+    ],
+)
+def test_classify_ignores_disclaimed_words(scan, description, expected):
+    assert scan.classify(scan.clean_description(description)) == expected
+
+
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        ("Does not auto-trigger on review", False),
+        ("Critical code review; see tutorial link", True),
+        ("An interactive tutorial to review code", False),
+    ],
+)
+def test_is_reviewer_filters(scan, description, expected):
+    assert scan.is_reviewer("x-review", scan.clean_description(description)) is expected
+
+
+def test_clean_description_drops_leading_boilerplate(scan):
+    description = (
+        "User-invocable ONLY via `/audit:x`. Does not auto-trigger on mentions of y.\n"
+        "  Adversarial reviewer."
+    )
+
+    assert scan.clean_description(description) == "Adversarial reviewer."
+
+
+@pytest.mark.parametrize(
+    ("frontmatter", "name", "description"),
+    [
+        ("name: a\ndescription: |\n  Review code block.", "a", "Review code block."),
+        ("name: a\ndescription: >-\n  Review code\n  folded.", "a", "Review code folded."),
+        ("name: a\ndescription:\nallowed-tools: Read", "a", ""),
+        ("name: a\ndescription: Review code.\nallowedTools: Read", "a", "Review code."),
+        (
+            'name: "walkthrough"\ndescription: "Review code quoted."',
+            "walkthrough",
+            "Review code quoted.",
+        ),
+    ],
+)
+def test_parse_frontmatter_forms(scan, tmp_path, frontmatter, name, description):
+    path = write(tmp_path / "SKILL.md", f"---\n{frontmatter}\n---\nbody\n")
+
+    meta = scan.parse_frontmatter(str(path))
+
+    assert meta is not None
+    assert (meta["name"], meta["description"]) == (name, description)
+
+
+def test_parse_frontmatter_without_frontmatter(scan, tmp_path):
+    path = write(tmp_path / "SKILL.md", "no frontmatter\n")
+
+    assert scan.parse_frontmatter(str(path)) is None

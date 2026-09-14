@@ -15,10 +15,19 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   Batch triage, which waits for the user's overrides, and the Ouroboros bridge also run in the main context.
 - `audit`: `blindspot`'s cross-model judge hardcoded `google/gemini-2.5-pro` in its OpenRouter call, so a missed substitution sent the audit to that model instead of the one picked in the menu.
   The assignment now holds an `<EXTERNAL_MODEL>` placeholder, which the existing guard rejects.
+- `audit`: the reviewer scan shared by `walkthrough` and `blindspot` returned bare skill names, globbed every `SKILL.md` under a plugin's install path, and dropped distinct skills sharing a name.
+  In a monorepo marketplace this credited a skill to a sibling plugin and offered skills from a stale copy.
+  It now reads the skills each plugin's marketplace entry declares (falling back to `skills/*/`), names them `plugin:skill` after their directory as Claude Code does, and deduplicates and excludes self-references on that qualified name.
+  Plugins set to `false` in `enabledPlugins` (user, project or local settings), and project or local installs belonging to another project, are no longer offered.
+  A corrupt or unexpectedly shaped plugin manifest yields an empty candidate list and a warning on stderr instead of a traceback.
+  Filtering, classification and the description excerpt ignore trigger and exclusion clauses ("Does not auto-trigger", "Not for") and the words "Claude Code", which made a skill match on words it disclaims, and the skill-tool signals accept plurals ("MCP servers").
+  A bare mention of "tutorial" no longer excludes a reviewer; only "interactive tutorial" does.
+  The frontmatter reader strips block scalar markers (`|`, `>-`) and surrounding quotes, stops a value at the next unindented line whatever the key's case, and no longer reads an empty `description:` as the following key.
 
 ### Changed
 
 - `audit`: the `walkthrough` orchestrator caps the reviewer report at 25 findings instead of 15, so the automatic batch triage (15 findings or more) can fire on a capped report rather than only at exactly 15.
+- `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
 
 ## [0.1.1] - 2026-06-03
 
