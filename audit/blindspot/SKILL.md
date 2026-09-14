@@ -59,7 +59,7 @@ Before proceeding, validate `<target-path>`:
    Substitute `<target-path>` with the resolved absolute path the user passed.
 
 4. Reject self-invocation: would create infinite recursion.
-   Resolve `--reviewer` to a concrete `SKILL.md` path using the same runtime resolution procedure as Phase 0 Path overlap (env shortcut → installed_plugins.json → `~/.claude/skills/`).
+   Resolve `--reviewer` to a concrete `SKILL.md` path using the same runtime resolution procedure as Phase 0 Path overlap (scan match → env shortcut → installed_plugins.json → `~/.claude/skills/`).
    If the resolved path's directory matches blindspot's own directory (compare via `realpath` on both sides), reject the invocation regardless of how the user spelled the argument (literal `blindspot`, absolute path, relative path, or symlink).
    Report the error and suggest using a different audit skill (e.g., `--reviewer skill-adversary`).
    Also reject if `--reviewer` resolves to a wrapper skill that, by its own SKILL.md content, would re-invoke blindspot internally (best-effort check: grep the resolved SKILL.md for `/blindspot` or `audit:blindspot` invocations; if found, refuse and require the user to pass the wrapper's underlying audit skill directly).
@@ -140,15 +140,19 @@ The audit skill's location must be resolved at runtime.
 Do not rely on a single static env var, because `${CLAUDE_PLUGIN_ROOT}` is only set when the host plugin is invoked through the normal plugin loader and is undefined in dev mode (skill executed from a checked-out repo) or non-plugin installs (`~/.claude/skills/<name>/`).
 
 **Resolution procedure**, in order.
-First match wins:
+First match wins.
+In steps 2 to 4, `<reviewer>` stands for the skill name after any `plugin:` prefix (`audit:skill-adversary` → `skill-adversary`).
 
-1. **`${CLAUDE_PLUGIN_ROOT}` shortcut.** If `$CLAUDE_PLUGIN_ROOT` is non-empty AND `$CLAUDE_PLUGIN_ROOT/audit/<reviewer>/SKILL.md` exists, use that path.
+1. **Scan match.** Run the reviewer scan from "Reviewer selection" Step 1 if it has not run yet; if the scan script itself cannot be located, skip to step 2.
+   If exactly one candidate matches `--reviewer` by `name` or by its bare suffix after `:`, use that candidate's `path`.
+   If several candidates share the bare suffix, fall through to step 2 rather than guessing.
+2. **`${CLAUDE_PLUGIN_ROOT}` shortcut.** If `$CLAUDE_PLUGIN_ROOT` is non-empty AND `$CLAUDE_PLUGIN_ROOT/audit/<reviewer>/SKILL.md` exists, use that path.
    This is the fast path for the standard plugin install.
-2. **Plugin manifest scan.** Read `~/.claude/plugins/installed_plugins.json`, walk each install path, look for `<install_path>/audit/<reviewer>/SKILL.md`.
+3. **Plugin manifest scan.** Read `~/.claude/plugins/installed_plugins.json`, walk each install path, look for `<install_path>/audit/<reviewer>/SKILL.md`.
    If found, use that path.
-3. **Global skill scan.** Look for `~/.claude/skills/<reviewer>/SKILL.md`.
+4. **Global skill scan.** Look for `~/.claude/skills/<reviewer>/SKILL.md`.
    If found, use that path.
-4. **No path resolvable.** The reviewer's install location cannot be determined.
+5. **No path resolvable.** The reviewer's install location cannot be determined.
    Skip the directory-comparison conditions (1) and (2) of the overlap check below, fall back to condition (3) only (the distributional rule: any Claude-authored reviewer/target pair sets path overlap = Yes), and append an `info` line in the report: `Reviewer <name> path not resolved, directory overlap check skipped.`
 
 Path overlap is circular if **any** of these conditions is true (OR logic):

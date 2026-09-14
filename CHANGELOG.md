@@ -22,6 +22,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   A corrupt or unexpectedly shaped plugin manifest yields an empty candidate list and a warning on stderr instead of a traceback.
   Filtering, classification and the description excerpt ignore trigger and exclusion clauses ("Does not auto-trigger", "Not for") and the words "Claude Code", which made a skill match on words it disclaims, and the skill-tool signals accept plurals ("MCP servers").
   A bare mention of "tutorial" no longer excludes a reviewer; only "interactive tutorial" does.
+- `audit`: `blindspot` resolved the reviewer's directory only from a bare name under `audit/` or `~/.claude/skills/`, so a qualified `plugin:skill` name from the scan resolved nothing and the path overlap check fell back to its distributional condition.
+  Resolution now takes the matching scan candidate's `path` first, and strips the `plugin:` prefix in the fallback steps.
   The frontmatter reader strips block scalar markers (`|`, `>-`) and surrounding quotes, stops a value at the next unindented line whatever the key's case, and no longer reads an empty `description:` as the following key.
 
 ### Changed
