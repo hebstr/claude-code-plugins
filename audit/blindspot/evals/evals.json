@@ -16,43 +16,38 @@
     {
       "id": 2,
       "prompt": "I want to review my skill with skill-adversary but it's a skill I wrote with Claude — is there a bias issue?",
-      "expected_output": "Detect model circularity (no path overlap but model family overlap). Ask for target path if not provided. Proceed with countermeasures.",
+      "expected_output": "Should NOT trigger. blindspot is explicit-invocation only (disable-model-invocation: true): a natural-language circularity concern does not launch it.",
       "files": [],
       "expectations": [
-        "The skill triggers and acknowledges the circularity concern",
-        "The output identifies model family overlap",
-        "The user is asked to provide the target path"
+        "blindspot does NOT trigger"
       ]
     },
     {
       "id": 3,
       "prompt": "lance blindspot sur mcp-adversary qui review le MCP ouroboros",
-      "expected_output": "Detect model circularity for MCP server authored for Claude, reviewed by Claude via mcp-adversary.",
+      "expected_output": "Should NOT trigger. blindspot is explicit-invocation only (disable-model-invocation: true): naming it in natural language, in any language, does not launch it.",
       "files": [],
       "expectations": [
-        "The skill triggers on French invocation",
-        "The output identifies mcp-adversary as the audit skill",
-        "Model circularity is detected"
+        "blindspot does NOT trigger",
+        "If the response mentions blindspot, it points the user to the /audit:blindspot slash command"
       ]
     },
     {
       "id": 4,
       "prompt": "can Claude objectively review this skill or is there a conflict of interest?",
-      "expected_output": "Trigger and ask for target path and audit skill if not provided.",
+      "expected_output": "Should NOT trigger. blindspot is explicit-invocation only (disable-model-invocation: true): a natural-language circularity concern does not launch it.",
       "files": [],
       "expectations": [
-        "The skill triggers on the circularity concern",
-        "The user is prompted for missing arguments (audit skill and target path)"
+        "blindspot does NOT trigger"
       ]
     },
     {
       "id": 5,
       "prompt": "add a second opinion from a different model on this review",
-      "expected_output": "Trigger and route to cross-model confirmation on an existing or upcoming review.",
+      "expected_output": "Should NOT trigger. blindspot is explicit-invocation only (disable-model-invocation: true): a natural-language request for a cross-model opinion does not launch it.",
       "files": [],
       "expectations": [
-        "The skill triggers on the cross-model request",
-        "The output references using an external model"
+        "blindspot does NOT trigger"
       ]
     },
     {
