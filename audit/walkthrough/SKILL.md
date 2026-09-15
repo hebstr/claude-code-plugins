@@ -507,7 +507,7 @@ After the status counts, add a **Mechanisms used** block summarizing what fired 
 For each mechanism, report: count of invocations, and if zero, the reason in parentheses.
 When the input came from `blindspot`, add a `blindspot input` segment first, summarizing bucket distribution and L2 savings/forces from the bucket-aware routing.
 Example:
-> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-2.5-pro · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required, 1 by L1 divergence; model: anthropic/claude-sonnet-4 via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
+> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required, 1 by L1 divergence; model: anthropic/claude-sonnet-4 via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
 
 The bridge returns pre-formatted mechanism summaries (cross-model status, evaluate results, drift score).
 Include them verbatim.
@@ -655,7 +655,7 @@ It builds the artifact from git diff.
 Present all Ouroboros results inline as described in the mechanism transparency format (Step 2b).
 Runtime errors are caught by the bridge: never let an Ouroboros failure block the walkthrough.
 
-**Model selection (L2 consensus).** The L2 consensus model roster (advocate, devil, judge; defaults `openrouter/anthropic/claude-opus-4-6`, `openrouter/openai/gpt-4o`, `openrouter/google/gemini-2.5-pro`) is owned by Ouroboros, not by this skill.
+**Model selection (L2 consensus).** The L2 consensus model roster (advocate, devil, judge; Ouroboros 0.54.4 defaults `openrouter/anthropic/claude-opus-5`, `openrouter/openai/gpt-4o`, `openrouter/google/gemini-2.5-pro`) is owned by Ouroboros, not by this skill.
 The `ouroboros_evaluate` MCP schema does not accept a model parameter, so the bridge cannot influence the choice per-call.
 To customize without forking Ouroboros, set the env vars `OUROBOROS_CONSENSUS_MODELS`, `OUROBOROS_CONSENSUS_ADVOCATE_MODEL`, `OUROBOROS_CONSENSUS_DEVIL_MODEL`, or `OUROBOROS_CONSENSUS_JUDGE_MODEL` before launching Claude Code (MCP servers inherit env at startup), or edit `~/.ouroboros/config.yaml` under the `consensus.models` key (reloaded per call).
 The actual judge model is always reported post-facto in the Step 3 Mechanisms block, so the audit trail is complete regardless of how it was configured.

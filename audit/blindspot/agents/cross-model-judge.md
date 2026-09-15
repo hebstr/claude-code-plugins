@@ -24,16 +24,16 @@ The agent does not select or default this value; it receives a concrete ID and r
 The parent skill (`audit/blindspot/SKILL.md`) handles model choice via an interactive menu of six curated options plus a custom-input flow.
 The agent receives an already-validated `EXTERNAL_MODEL` and trusts it.
 
-**Curated options** surfaced in the menu:
+**Curated options** surfaced in the menu, checked against the OpenRouter catalog on 2026-09-15:
 
-  | Model ID                      | Family                |
-  | ----------------------------- | --------------------- |
-  | `google/gemini-2.5-pro`       | Google (menu default) |
-  | `google/gemini-2.5-flash`     | Google                |
-  | `openai/gpt-4.1`              | OpenAI                |
-  | `openai/o4-mini`              | OpenAI                |
-  | `deepseek/deepseek-r1`        | DeepSeek              |
-  | `meta-llama/llama-4-maverick` | Meta                  |
+  | Model ID                        | Family                |
+  | ------------------------------- | --------------------- |
+  | `google/gemini-3.1-pro-preview` | Google (menu default) |
+  | `google/gemini-3.8-flash`       | Google                |
+  | `openai/gpt-5.6-sol`            | OpenAI                |
+  | `deepseek/deepseek-v4-pro-0813` | DeepSeek              |
+  | `qwen/qwen3.8-max-0902`         | Alibaba (Qwen)        |
+  | `x-ai/grok-4.6`                 | xAI                   |
 
 **Format validation at this layer.** Independently of the skill, the agent re-validates `EXTERNAL_MODEL` against the regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$` before any use.
 If it does not match, report the error and stop.

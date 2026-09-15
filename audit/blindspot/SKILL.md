@@ -225,20 +225,21 @@ test -n "$OPENROUTER_API_KEY" && echo "openrouter:available" || echo "openrouter
 ### If OpenRouter available: Pick external model
 
 Before spawning the cross-model judge, present the model menu to the user and wait for their choice.
+The curated entries were checked against the OpenRouter catalog on 2026-09-15; an entry that OpenRouter rejects as unknown has been retired and the list is due for review.
 Display verbatim in the user's language:
 
 ```
 External model for cross-model judge. Claude wrote the target, so the goal is a second opinion from a non-Claude family.
 
-  1. google/gemini-2.5-pro       : default. Strong reasoning, far from Claude's training distribution. Slower, more expensive.
-  2. google/gemini-2.5-flash     : same family as 1, cheaper and faster. Use for large targets where cost matters.
-  3. openai/gpt-4.1              : rigorous, instruction-focused. Different family from 1, useful if you've already audited with Gemini.
-  4. openai/o4-mini              : OpenAI's reasoning model (visible thinking). Slower than gpt-4.1 but catches subtler logic flaws.
-  5. deepseek/deepseek-r1        : open reasoning model. Often more direct, less hedged than commercial models.
-  6. meta-llama/llama-4-maverick : open weights, alternative distribution. Pick when other models converge and you want a wildcard.
+  1. google/gemini-3.1-pro-preview : default. Google's frontier reasoning model, far from Claude's training distribution. Preview release.
+  2. google/gemini-3.8-flash       : same family as 1, cheaper and faster. Use for large targets where cost matters.
+  3. openai/gpt-5.6-sol            : OpenAI's GPT-5.6 flagship reasoning model. Different family from 1, useful if you've already audited with Gemini.
+  4. deepseek/deepseek-v4-pro-0813 : DeepSeek's large MoE reasoning model. Low cost, alternative distribution.
+  5. qwen/qwen3.8-max-0902         : Alibaba's large MoE model, alternative distribution. Pick when other models converge and you want a wildcard.
+  6. x-ai/grok-4.6                 : xAI's reasoning model. One more family for a third pass.
   7. Custom                        : type any OpenRouter model ID. A cost notice is shown before launch.
 
-Quick rule: for a one-shot audit, pick 1. For a second pass after Gemini, pick 3 or 5 (different family). For speed on a large artifact, pick 2.
+Quick rule: for a one-shot audit, pick 1. For a second pass after Gemini, pick 3 or 4 (different family). For speed on a large artifact, pick 2.
 
 Your choice [1-7, Enter for default]:
 ```
@@ -247,8 +248,8 @@ Your choice [1-7, Enter for default]:
 
 - **`1`-`6`** → map to the corresponding curated entry (see `agents/cross-model-judge.md` for the canonical mapping).
   Use that model ID as `EXTERNAL_MODEL`.
-- **Empty / `Enter` / `default` / "1"** → use `google/gemini-2.5-pro`.
-- **Full model ID matching one of the curated entries** (e.g., `openai/gpt-4.1`) → accept and use it.
+- **Empty / `Enter` / `default` / "1"** → use `google/gemini-3.1-pro-preview`.
+- **Full model ID matching one of the curated entries** (e.g., `openai/gpt-5.6-sol`) → accept and use it.
 - **`7` / `custom`** → trigger the custom flow described below.
 - **Anything else / ambiguous** → re-present the menu once with a one-line clarification ("Pick a number 1-7 or press Enter for default."), then default to `1` on a second ambiguous response.
 
@@ -463,7 +464,7 @@ Run `/audit:walkthrough` (no arguments) to process these findings interactively.
   Results are compared, not merged.
 - **Transparency is mandatory.** Every report includes the circularity assessment and
   countermeasures applied (or not applied), regardless of findings.
-- **Model selection.** The external model is picked interactively at invocation via the menu in Phase 1 (default on Enter: `google/gemini-2.5-pro`, strong reasoning, non-Claude family).
+- **Model selection.** The external model is picked interactively at invocation via the menu in Phase 1 (default on Enter: `google/gemini-3.1-pro-preview`, strong reasoning, non-Claude family).
   Six curated options are surfaced; option 7 accepts any OpenRouter model ID after format validation and an explicit cost-warning confirmation.
   Both the skill and the agent re-validate against the format regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$` (defense in depth), and the agent uses `jq --arg` parameterization for the actual API call.
 - **No credentials in prompts.** The OPENROUTER_API_KEY is read from the environment.

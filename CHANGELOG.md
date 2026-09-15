@@ -7,6 +7,12 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ## [Unreleased]
 
+### Changed
+
+- `audit`: `blindspot`'s curated OpenRouter models, unchanged since the first release, are replaced by current releases checked against the OpenRouter catalog on 2026-09-15: `google/gemini-3.1-pro-preview` (default), `google/gemini-3.8-flash`, `openai/gpt-5.6-sol`, `deepseek/deepseek-v4-pro-0813`, `qwen/qwen3.8-max-0902` and `x-ai/grok-4.6`.
+  Meta leaves the menu, since it has shipped nothing since Llama 4; any other model stays reachable through the custom option.
+  `moonshotai/kimi-k3` was considered and left out: OpenRouter spreads it across about twenty providers, and a three-line prompt exceeded the judge's 120-second timeout on both test calls.
+
 ### Fixed
 
 - `audit`: `walkthrough` stalled after launching its reviewer, and `blindspot` could compile its report before its audits finished, because both assumed a blocking Agent while interactive Claude Code runs every Agent in the background.
