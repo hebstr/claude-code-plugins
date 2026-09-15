@@ -15,6 +15,9 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: the `walkthrough` orchestrator caps the reviewer report at 25 findings instead of 15, so the automatic batch triage (15 findings or more) can fire on a capped report rather than only at exactly 15.
 - `audit`: the Ouroboros bridge's last tested version (`MAX_TESTED`) is 0.54.4 instead of 0.38.2, so an up-to-date install no longer warns on every walkthrough; neither the QA nor the drift threshold is recalibrated against that version.
 - `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
+- `audit`: `skill-adversary` and `mcp-adversary` set `disable-model-invocation: true`, so the `Skill` tool refuses to launch them and the "User-invocable ONLY" contract their descriptions already stated is enforced at runtime, as it already was for `blindspot`.
+  Their eval suites follow: the positive case invokes the slash command, and the natural-language cases that repeated a listed non-trigger verbatim now expect no trigger, which turns them into regression tests for the contract instead of contradictions of it.
+  Seven skills still claim explicit invocation without enforcing it (`sweep`, `walkthrough`, and the five `workflow` skills); only `walkthrough` among them has an eval suite to realign.
 
 ### Fixed
 
@@ -62,6 +65,20 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   In walkthrough-only mode the filter takes the files the findings cite as its target, falling back to the working directory's root only when none exists, so a report about another repository is calibrated for that repository and both modes keep the same files.
   The status line says when the kept rules were not injected into a non-`code` reviewer, and `sweep` writes the no-calibration case as `none (<reason>)` like the shared procedure.
   The project root of a single-file target is resolved from its parent directory, since `git -C` refuses a file and the root fell back to the file's own directory.
+- `audit`: `mcp-adversary` listed the configured MCP servers from `~/.claude/settings.json` and `.claude/settings.json`, neither of which holds an `mcpServers` key, so both pre-loaded lists were always empty and the skill asked for a path it could have resolved.
+  Discovery reads `~/.claude.json` and `.mcp.json`, and prints `(none found)` on an empty map, where the previous form printed nothing at all.
+  Servers provided by a plugin live in neither file and are still out of reach.
+- `audit`: `walkthrough`'s L2 verdict call ran as a Bash call with no explicit timeout, so the tool's 120-second default expired at the same instant as the script's own `--timeout` default of 120 seconds, making the documented exit-1 timeout branch unreachable and leaving the failure with no reason attached.
+  The block now runs with `timeout: 600000` and passes `--timeout 580`, the pair `blindspot`'s judge already uses, so the script reports its own timeout before the tool cuts the call.
+- `audit`: `mcp-adversary`'s report template carried three schema sections for the five finding categories `schema-critic` emits; Missing Constraints and Default Surprises had nowhere to land and now have their own sections.
+- `audit`: `walkthrough`'s Step 2b summary gated cross-model validation on Important+ findings alone, contradicting the bridge's own rule that a finding tagged `claude-only` goes to L2 whatever its severity.
+- `audit`: `blindspot`'s three report templates offered only two of the four verdicts its circularity table defines, so "Structural circularity" could never be printed.
+- `audit`: `blindspot` declared the `Skill` tool that its body forbids three times, and omitted `AskUserQuestion` although it blocks on user input at four points.
+- `audit`, `workflow`: `skill-adversary`, `mcp-adversary` and `sync` omitted `Bash` from `allowed-tools` while their bodies run shell.
+- `workflow`: `doc-structure` announced that Phase 3 regenerates the `.md` through the project's pipeline, contradicting that same phase's rule never to auto-execute a regen command.
+- `workflow`: `write` announced 19 cross-register rules in `write-fr-core.md`, which carries 18.
+- `audit`: external skill names are qualified as `plugin:skill` in `walkthrough`, `blindspot`, `skill-adversary` and `mcp-adversary` and in three eval fixtures, extending the pass already applied to `sweep`.
+- docs: the requirements table omitted `python3`, a hard dependency of `blindspot`, `walkthrough` and `mcp-adversary`, and scoped `jq` to `blindspot` although `walkthrough` reads the Ouroboros version and the PR body with it; `.pytest_cache/` is ignored by the repository instead of relying on the ignore file pytest generates inside it.
 
 ## [0.1.1] - 2026-06-03
 
