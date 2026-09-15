@@ -6,7 +6,7 @@ description: >
   Interactive, point-by-point walkthrough of a review report produced by any Claude Code review skill (skill-adversary, critical-code-reviewer, or any other).
   Three modes: **orchestrator mode** (provide a target + optional `--reviewer` flag: detects deployment context, calibrates severity, launches the reviewer, then walks through its report), **walkthrough-only mode** (processes an existing report from the conversation), and **revisit-deferred mode** (processes the project's `DEFERRED.md` backlog as the input source).
   Parses review findings and processes each one at a time: re-evaluates validity, proposes and applies fixes, checks impacted files for regressions, and waits for user approval before moving on.
-  Adversarial cross-provider validation (L2) is always active on Blocking/Required findings when `OPENROUTER_API_KEY` is set.
+  Adversarial cross-provider validation (L2) is always active on Blocking/Required/Critical findings when `OPENROUTER_API_KEY` is set.
 
   Usage: `/audit:walkthrough [target] [--reviewer name] [--batch|--no-batch] [--revisit-deferred]`
 
@@ -141,7 +141,7 @@ If detected:
 - Tag each extracted finding with its bucket: `agreed`, `claude-only`, or `external-only`.
 - Parse the external model name from the report's `### Cross-Model Findings (<model>)` header: this is the model that already cross-validated the agreed bucket in Phase 1.
 - Carry both the tag and the external model name forward to Step 2b.
-The bridge consults the tag when routing L2 (see `agents/ouroboros-bridge.md`: agreed findings skip L2, Claude-only findings get mandatory L2).
+The bridge consults the tag when routing L2 (see `agents/ouroboros-bridge.md`: agreed findings skip the severity trigger of L2, Claude-only findings get mandatory L2).
 - **Parse the `**Counts:**` line** emitted by blindspot's Convergence Analysis (format: `<R> raw findings (<E> external + <C> Claude) → <A> agreed pair(s) + <CO> Claude-only + <EO> external-only`).
 The expected number of distinct findings to walk through is `A + CO + EO`: each agreed pair collapses to one bucket entry, so the walked total is the sum of bucket sizes, not the raw count `R = 2·A + CO + EO`.
 If your extraction yields a different count, do not silently proceed: surface the discrepancy to the user as a one-line warning (e.g. "⚠ Extracted N findings, blindspot Counts implies M.
@@ -195,10 +195,10 @@ Before processing the first finding, report a brief capabilities status block so
   If none, say "skipped (no Important+ findings)".
 - **Severity reordering**: "applied" (if reordering happened) or "original order preserved" (if no tiers detected).
 - **Batch mode**: "active (N findings >= 15)" when Step 1b will run, "inactive (N findings < 15)" when it won't, or "forced via --batch" / "disabled via --no-batch" when overridden by the user.
-- **Cross-model validation**: report the active level based on bridge detection results (L1 always on Important+; L2 always on Blocking/Required and on `claude-only` blindspot findings when `OPENROUTER_API_KEY` is set, or on L1 divergence: see `agents/ouroboros-bridge.md` for details).
+- **Cross-model validation**: report the active level based on bridge detection results (L1 always on Important+; L2 always on Blocking/Required/Critical (severity trigger skipped on `agreed`) and on `claude-only` blindspot findings when `OPENROUTER_API_KEY` is set, or on L1 divergence or failure: see `agents/ouroboros-bridge.md` for details).
 - **Blindspot input** (only when the report came from `blindspot`): report bucket counts and the external model that already pre-validated the agreed bucket.
   Format: "blindspot input: R raw → N agreed + M Claude-only + K external-only (external model: <name>).
-  L2 will skip the agreed bucket and force on Claude-only."
+  L2 will skip the severity trigger on the agreed bucket and force on Claude-only."
   When the `**Counts:**` line is absent in the upstream report (older blindspot version, no `R` available), omit the `R raw → ` prefix and fall back to "blindspot input: N agreed / M Claude-only / K external-only ...".
 
 Add a brief glossary of the mechanisms that may fire during the walkthrough, so the user understands the transparency lines they will see later.
@@ -207,7 +207,7 @@ List only the ones available this time: the two cross-model lines always (L2 mar
 > **Mechanisms available for this walkthrough:**
 > - *QA auto*: automated second opinion when the verdict on a finding is genuinely uncertain (via `ouroboros_qa`)
 > - *Cross-model L1 (intra-family)*: independent re-evaluation by an Agent with an alternate Claude model (e.g. Sonnet if main is Opus); triggers on Important+ findings
-> - *Cross-model L2 (cross-provider)*: independent `valid`/`invalid` verdict from a non-Claude model via OpenRouter, using `scripts/openrouter-verdict.py` (runs with or without Ouroboros); triggers on Blocking/Required, `claude-only` blindspot findings, or L1 divergence
+> - *Cross-model L2 (cross-provider)*: independent `valid`/`invalid` verdict from a non-Claude model via OpenRouter, using `scripts/openrouter-verdict.py` (runs with or without Ouroboros); triggers on Blocking/Required/Critical, `claude-only` blindspot findings, or L1 divergence or failure
 > - *Lateral think*: creative unblocking when a point stays stuck after 2+ exchanges
 > - *Evaluate*: final validation of all applied changes (triggers when ≥ 2 fixes)
 > - *Drift check*: detects whether cumulative fixes shifted the code away from its original intent (triggers when ≥ 4 fixes)
@@ -236,7 +236,7 @@ This is the only blocking interaction in Step 1: fire it exactly once per walkth
 ```
 ⚠ Cross-provider adversarial validation (L2) disabled — OPENROUTER_API_KEY is not set in the environment.
 
-Without it, only intra-family L1 runs on Important+ findings (an alternate Claude model re-evaluates Claude's work — same distributional assumptions). L2 (independent verdict from a different provider via OpenRouter) cannot trigger on Blocking/Required findings, removing the strongest safety net against Claude-only false positives.
+Without it, only intra-family L1 runs on Important+ findings (an alternate Claude model re-evaluates Claude's work — same distributional assumptions). L2 (independent verdict from a different provider via OpenRouter) cannot trigger on Blocking/Required/Critical findings, removing the strongest safety net against Claude-only false positives.
 
 How do you want to proceed?
   1. Continue without L2 (degraded mode, explicitly accepted)
@@ -377,11 +377,11 @@ Only main-model opinion available.
 Verification tagged 'unverified' (audit meta-tag, distinct from the verdict); the verdict is still one of ACCEPTED/REJECTED/NOTED/DEFERRED, assigned from Claude's solo assessment alone."
 - "Cross-model L2: valid (openai/gpt-5.6-sol via OpenRouter): `${1:?}` does not guard the second call site; finding confirmed."
 - "Cross-model L2: invalid (google/gemini-3.1-pro-preview via OpenRouter): the loop exits on the sentinel; divergence with Claude's verdict surfaced to the user."
-- "Cross-model: L1 only (not Blocking/Required, no divergence)."
+- "Cross-model: L1 only (not Blocking/Required/Critical, no divergence)."
 - "Cross-model: skipped (finding classified Minor)."
-- "Cross-model L2: skipped; finding tagged 'agreed' from blindspot input (already cross-validated by <model> in Phase 1)."
+- "Cross-model L2: skipped; finding tagged 'agreed' from blindspot input (already cross-validated by <model> in Phase 1; an L1 divergence or failure would still escalate)."
 - "Cross-model L2: triggered; finding tagged 'claude-only' from blindspot input (mandatory: external model did not flag this, high self-preference risk)."
-- "Cross-model L2: triggered (per standard severity rules: Blocking/Required); finding tagged 'external-only' from blindspot input.
+- "Cross-model L2: triggered (per standard severity rules: Blocking/Required/Critical); finding tagged 'external-only' from blindspot input.
 Claude tends to under-rate these, so the cross-provider verdict is load-bearing when it fires.
 L2 is NOT forced on external-only by the bucket tag alone."
 - "⚠ L2 mandatory but unavailable: claude-only finding accepted without cross-provider verification" (OPENROUTER_API_KEY not set; bridge no-silent-fallback rule).
@@ -506,7 +506,7 @@ After the status counts, add a **Mechanisms used** block summarizing what fired 
 For each mechanism, report: count of invocations, and if zero, the reason in parentheses.
 When the input came from `blindspot`, add a `blindspot input` segment first, summarizing bucket distribution and L2 savings/forces from the bucket-aware routing.
 Example:
-> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required, 1 by L1 divergence; model: openai/gpt-5.6-sol via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
+> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required/Critical, 1 by L1 divergence; model: openai/gpt-5.6-sol via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
 
 The bridge returns pre-formatted mechanism summaries (cross-model status, evaluate results, drift score).
 Include them verbatim.
@@ -518,11 +518,11 @@ Render in the Mechanisms block: `evaluate skipped (only N fix(es))` (where N is 
 Likewise for drift at fewer than 4 fixes: `drift skipped (< 4 fixes)`, already shown in the example above.
 These two cases are normal control flow, no anomaly prefix.
 
-**Drift skipped at trigger-met.** When ≥ 4 fixes were applied but the bridge could not resolve `seed_content` (no PR, no commit message, no orchestrator description), the bridge returns a `warn` anomaly with the exact string: `Drift check skipped: no seed_content resolvable from PR body, commit message, or orchestrator description.` Render verbatim in the Mechanisms block, prefixed with `⚠` per Step 1's anomaly rule.
+**Drift skipped at trigger-met.** When ≥ 4 fixes were applied but the bridge could not resolve `seed_content` (no review goal, no PR, no commit message), the bridge returns a `warn` anomaly with the exact string: `Drift check skipped: no seed_content resolvable from review goal, PR body, or commit message.` Render verbatim in the Mechanisms block, prefixed with `⚠` per Step 1's anomaly rule.
 Never paraphrase or shorten: the no-silent-fallback contract requires the full reason in the audit trail.
 
 **Degraded L2 mode.** If Step 1's adversarial degradation notice fired and the user accepted to continue (internal flag `degraded_l2_accepted: true`), the L2 segment of the Mechanisms block must surface that choice explicitly rather than show a generic zero-count reason.
-Render it as: `cross-model L2 0/N (OPENROUTER_API_KEY not set — user accepted degraded mode at Step 1)`, where N is the count of findings that would otherwise have qualified (Blocking/Required + `claude-only` blindspot tags + L1 divergences).
+Render it as: `cross-model L2 0/N (OPENROUTER_API_KEY not set — user accepted degraded mode at Step 1)`, where N is the count of findings that would otherwise have qualified (Blocking/Required/Critical not tagged `agreed` + `claude-only` blindspot tags + L1 divergences + L1 failures).
 This makes the trade-off visible in the audit trail.
 
 Keep it to 2-3 lines max: the user was there for the whole walkthrough.
@@ -649,7 +649,7 @@ Use the result for the transparency status.
 It handles Agent spawning (L1) and the OpenRouter verdict script (L2).
 - **Step 2b-2c (lateral think):** when stuck (2+ exchanges or regression revert), run the bridge's lateral think.
 - **Step 3 (evaluate):** when >= 2 fixes applied, run the bridge's evaluate for final validation.
-It builds the artifact from git diff.
+It builds the artifact from git diff, plus the full content of each file the walkthrough created.
 - **Step 3 (drift):** when >= 4 fixes applied, run the bridge's drift check.
 
 Present all Ouroboros results inline as described in the mechanism transparency format (Step 2b).

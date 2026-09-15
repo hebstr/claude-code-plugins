@@ -28,9 +28,9 @@ The packaging agent (D) is only added when project-type-specific compliance matt
 
 ### Ouroboros integration (in walkthrough)
 
-`ouroboros_evaluate` must receive actual code (git diff) or file content as artifact, not a prose summary.
+`ouroboros_evaluate` must receive actual code (git diff, plus the full content of created files) or file content as artifact, not a prose summary.
 Prose summaries produce misleading scores.
-walkthrough SKILL.md enforces this with explicit fallback flagging.
+The walkthrough's Ouroboros bridge (`agents/ouroboros-bridge.md`) enforces this with explicit fallback flagging.
 
 ## Related files
 

@@ -17,7 +17,7 @@ Orchestrates a comprehensive, multi-angle review of a project by spawning specia
 ## Invocation
 
 ```
-/sweep [path]
+/audit:sweep [path]
 ```
 
 `[path]` is optional; defaults to the current working directory.
@@ -70,7 +70,7 @@ This content will be injected into every agent prompt as "Known false positive p
 #### Report to user
 
 Report the detected type, size category, LOC count, number of agents to launch, whether calibration memory was found, and which skill dependencies are available (check the skill list).
-Always check `/critical-code-reviewer` (Agent A) and `/walkthrough` (Phase 4).
+Always check `/critical-code-reviewer` (Agent A) and `/audit:walkthrough` (Phase 4).
 For R package projects, also check `/testing-r-packages`, `/r-package-development` (Agent C), and `/cran-extrachecks` (Agent D).
 Report availability of each before proceeding.
 
@@ -202,7 +202,7 @@ Display the consolidated report using this **exact template**: follow the format
 ...
 
 ---
-Run `/walkthrough` to process these findings one by one interactively.
+Run `/audit:walkthrough` to process these findings one by one interactively.
 ```
 
 **Mandatory elements:**
@@ -210,7 +210,7 @@ Run `/walkthrough` to process these findings one by one interactively.
 - The detected **project type** and **LOC** in the header
 - The **Calibration** line: the step 6 line of the shared procedure (kept and skipped files), or `none (<reason>)`
 - **Duplicate count** in the summary line
-- The `---` separator and `/walkthrough` footer
+- The `---` separator and `/audit:walkthrough` footer
 - If an agent failed or timed out, note the coverage gap at the bottom
 - If Agent A used the inline fallback instead of `/critical-code-reviewer`, show `Agent A (correctness, inline fallback)` instead of `Agent A (correctness via critical-code-reviewer)` in the Agents line
 - For R package projects, Agent C must report which R-specific skills were successfully invoked: `Agent C (docs/tests via testing-r-packages + r-package-development)` when both worked, `Agent C (docs/tests via testing-r-packages)` or `Agent C (docs/tests via r-package-development)` when only one was available, or `Agent C (docs/tests, no r-lib skills)` when neither was available.
@@ -221,7 +221,7 @@ For project types where Agent D uses no skill, show the focus directly: `Agent D
 
 ### Phase 4: Offer walkthrough
 
-After presenting the report, ask the user if they want to run `/walkthrough`.
+After presenting the report, ask the user if they want to run `/audit:walkthrough`.
 Do not auto-trigger it.
 
 If the user accepts, invoke the walkthrough skill.

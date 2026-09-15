@@ -69,7 +69,7 @@ Before proceeding, validate `<target-path>`:
 When `--reviewer` is omitted, the reviewer is discovered at runtime, suggested based on the target type, and confirmed with the user.
 Never silently default.
 
-This procedure mirrors `/walkthrough`'s orchestrator (see `audit/walkthrough/agents/orchestrator.md` §"Reviewer selection") and reuses its scanning script directly.
+This procedure mirrors `/audit:walkthrough`'s orchestrator (see `audit/walkthrough/agents/orchestrator.md` §"Reviewer selection") and reuses its scanning script directly.
 Any divergence in Steps 1 and 2 (scanning, validation) should be treated as a bug; the Step 3 target-type table is intentionally extended in blindspot to cover Claude-interpreted artifacts (CLAUDE.md, agent definitions, paths under `~/.claude/`) that walkthrough does not gate on.
 
 **Step 1, scan available reviewers.** Run the helper script from the sibling walkthrough skill:
@@ -190,7 +190,7 @@ In that case, model-family overlap = No.
 
 If **no circularity** (rare: typically human-written codebase being audited by Claude): inform the
 user that blindspot's countermeasures are not load-bearing here, but proceed anyway, since the user
-explicitly invoked `/blindspot`, so honor that.
+explicitly invoked `/audit:blindspot`, so honor that.
 Skip the cross-model judge to avoid wasting an
 OpenRouter call, run the original audit skill directly as an Agent (wait for its completion notification as described under "Waiting for the Agents"), and append a short note in the report
 explaining why the cross-model layer was skipped.
@@ -365,10 +365,7 @@ If either model returned zero findings or errored out, skip the convergence anal
 
 **Counts (mandatory: render verbatim, do not omit).** Before listing the buckets, emit a single line of the form:
 
-```
-**Counts:** <R> raw findings (<E> external + <C> Claude) → <A> agreed pair(s) + <CO> Claude-only + <EO> external-only
-
-```
+    **Counts:** <R> raw findings (<E> external + <C> Claude) → <A> agreed pair(s) + <CO> Claude-only + <EO> external-only
 
 Where: `R = E + C` (total raw count across both sources before convergence); `A` = number of agreed pairs (each pair counts once here); `CO` = items in the Claude-only bucket; `EO` = items in the External-only bucket. The identity `2·A + CO + EO = R` must hold; if it does not, the bucketing has dropped or duplicated a finding and must be redone before continuing. Near-miss items count as **two separate findings** (one Claude-only, one external-only) per the matching-procedure rule above; never collapse a near-miss into a single line in the counts or in the bucket lists.
 
@@ -397,7 +394,7 @@ Where: `R = E + C` (total raw count across both sources before convergence); `A`
 
 ### Next step
 
-Run `/audit:walkthrough` (no arguments) to process these findings interactively. The walkthrough auto-detects this report's `### Convergence Analysis` section, tags each finding by bucket (agreed / claude-only / external-only), and routes L2 cross-model verification accordingly: skipped on agreed, forced on claude-only, standard severity rules on external-only (the bucket tag alone does not force L2; the parent surfaces a "Claude tends to under-rate these" warning).
+Run `/audit:walkthrough` (no arguments) to process these findings interactively. The walkthrough auto-detects this report's `### Convergence Analysis` section, tags each finding by bucket (agreed / claude-only / external-only), and routes L2 cross-model verification accordingly: severity trigger skipped on agreed (an L1 divergence or failure still escalates), forced on claude-only, standard severity rules on external-only (the bucket tag alone does not force L2; the parent surfaces a "Claude tends to under-rate these" warning).
 ```
 
 ### If fallback mode (no OpenRouter key)
@@ -433,7 +430,7 @@ No cross-model countermeasure was available.
    - Get a key at https://openrouter.ai/keys (free tier available)
    - `export OPENROUTER_API_KEY=<your-key>` in your shell (and add the line to `~/.bashrc` / `~/.zshrc` for persistence)
    - Restart Claude Code so the new env is inherited by the MCP servers and Bash subshells
-   - Re-run `/blindspot <target-path> [--reviewer <skill>]`; the cross-model judging path will activate automatically
+   - Re-run `/audit:blindspot <target-path> [--reviewer <audit-skill>]`; the cross-model judging path will activate automatically
 2. Ask a human reviewer to specifically check for findings that seem surprisingly lenient
 3. Challenge any "no issues found" conclusions; absence of findings is itself a red flag
    in a circular review
@@ -448,7 +445,7 @@ No cross-model countermeasure was available.
 
 ### Next step
 
-Run `/audit:walkthrough` (no arguments) to process these findings interactively. Without cross-model convergence data, findings go through the walkthrough's standard L2 cross-provider check, on Blocking/Required findings and L1 divergences (no bucket routing, since no external model contributed).
+Run `/audit:walkthrough` (no arguments) to process these findings interactively. Without cross-model convergence data, findings go through the walkthrough's standard L2 cross-provider check, on Blocking/Required/Critical findings and L1 divergences or failures (no bucket routing, since no external model contributed).
 ```
 
 ## Important constraints

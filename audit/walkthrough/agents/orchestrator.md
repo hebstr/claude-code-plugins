@@ -18,7 +18,7 @@ Extract from the user's request:
 - **reviewer**: `--reviewer` value (no hardcoded list, no silent default, see "Reviewer selection" below)
 - **batch**: `--batch` / `--no-batch` override (optional)
 
-Adversarial cross-provider validation (L2) is always on for Blocking/Required findings when `OPENROUTER_API_KEY` is set: no flag to parse.
+Adversarial cross-provider validation (L2) is always on for Blocking/Required/Critical findings when `OPENROUTER_API_KEY` is set: no flag to parse.
 
 ## Reviewer selection
 
@@ -81,7 +81,7 @@ Once the choice is locked in, carry the chosen reviewer's `category` forward: it
 ## Circularity check (blindspot suggestion)
 
 Before doing any heavy work (memory loading, calibration, reviewer launch), check whether the upcoming review is structurally circular: Claude reviewing a Claude-authored artifact in the same skill family.
-If so, suggest chaining via `/blindspot` instead of running the reviewer directly.
+If so, suggest chaining via `/audit:blindspot` instead of running the reviewer directly.
 
 **Suggest blindspot for high-signal circularity (artifact-driven, reviewer-agnostic):**
 
@@ -101,9 +101,9 @@ If a high-signal case matches, present this nudge to the user (one prompt, then 
 
 ```
 Circularity detected — <reason in one line>.
-blindspot can route a parallel cross-model audit (via OpenRouter) and tag findings as agreed/Claude-only/external-only before the walkthrough. The walkthrough will then skip L2 on agreed findings and force L2 on Claude-only ones.
+blindspot can route a parallel cross-model audit (via OpenRouter) and tag findings as agreed/Claude-only/external-only before the walkthrough. The walkthrough will then skip the severity trigger of L2 on agreed findings and force L2 on Claude-only ones.
 
-Chain via /blindspot first? [y/N]
+Chain via /audit:blindspot first? [y/N]
 ```
 
 **On user response:**
@@ -117,9 +117,9 @@ Chain via /blindspot first? [y/N]
   ```
   Run this command yourself in the prompt:
 
-    /blindspot <target> --reviewer <reviewer>
+    /audit:blindspot <target> --reviewer <reviewer>
 
-  When blindspot's report is in the conversation (it will contain a `### Convergence Analysis` section), relaunch `/audit:walkthrough` with no arguments. The walkthrough will detect the report, tag findings by bucket (agreed / claude-only / external-only), and route L2 accordingly (skip on agreed, force on claude-only).
+  When blindspot's report is in the conversation (it will contain a `### Convergence Analysis` section), relaunch `/audit:walkthrough` with no arguments. The walkthrough will detect the report, tag findings by bucket (agreed / claude-only / external-only), and route L2 accordingly (severity trigger skipped on agreed, forced on claude-only).
   ```
 
   Do not emit the structured block in this branch: the walkthrough has not run.
