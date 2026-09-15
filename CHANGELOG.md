@@ -12,9 +12,16 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: `blindspot`'s curated OpenRouter models, unchanged since the first release, are replaced by current releases checked against the OpenRouter catalog on 2026-09-15: `google/gemini-3.1-pro-preview` (default), `google/gemini-3.8-flash`, `openai/gpt-5.6-sol`, `deepseek/deepseek-v4-pro-0813`, `qwen/qwen3.8-max-0902` and `x-ai/grok-4.6`.
   Meta leaves the menu, since it has shipped nothing since Llama 4; any other model stays reachable through the custom option.
   `moonshotai/kimi-k3` was considered and left out: OpenRouter spreads it across about twenty providers, and a three-line prompt exceeded the judge's 120-second timeout on both test calls.
+- `audit`: the `walkthrough` orchestrator caps the reviewer report at 25 findings instead of 15, so the automatic batch triage (15 findings or more) can fire on a capped report rather than only at exactly 15.
+- `audit`: the Ouroboros bridge's last tested version (`MAX_TESTED`) is 0.54.4 instead of 0.38.2, so an up-to-date install no longer warns on every walkthrough; the QA threshold stays unvalidated against that version.
+- `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
 
 ### Fixed
 
+- `audit`: `walkthrough`'s cross-provider validation (L2) never reached another provider.
+  It went through Ouroboros consensus, and the Ouroboros plugin starts its MCP server with `--llm-backend claude_code`, whose adapter replaces every non-Anthropic OpenRouter voter with the default Claude model: the three votes reported as `gpt-4o`, `claude-opus-5` and `gemini-2.5-pro` were all Claude.
+  L2 now calls `audit/walkthrough/scripts/openrouter-verdict.py`, which asks one external model through OpenRouter for a `valid`/`invalid` verdict and reports the model that actually answered: `openai/gpt-5.6-sol` by default, `google/gemini-3.1-pro-preview` when blindspot's first phase already used an OpenAI model.
+  L2 no longer requires Ouroboros, and the Ouroboros enrichment notice no longer lists L1 or L2 among the mechanisms disabled without it, since L1 is an Agent and L2 an OpenRouter call, and the Step 1 mechanism glossary is shown without Ouroboros too, restricted to the mechanisms available; the final evaluate always passes `trigger_consensus: false`, and the Step 1 status reads `L2 enabled` or `L2 unavailable (no OPENROUTER_API_KEY)` instead of the consensus labels.
 - `audit`: `walkthrough` stalled after launching its reviewer, and `blindspot` could compile its report before its audits finished, because both assumed a blocking Agent while interactive Claude Code runs every Agent in the background.
   The walkthrough orchestrator runs in the main context (a subagent cannot prompt the user), and both skills announce the running review and wait for the completion notification before continuing.
   The L1 cross-model check in the Ouroboros bridge waits the same way.
@@ -41,12 +48,6 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   In walkthrough-only mode the filter takes the files the findings cite as its target, falling back to the working directory's root only when none exists, so a report about another repository is calibrated for that repository and both modes keep the same files.
   The status line says when the kept rules were not injected into a non-`code` reviewer, and `sweep` writes the no-calibration case as `none (<reason>)` like the shared procedure.
   The project root of a single-file target is resolved from its parent directory, since `git -C` refuses a file and the root fell back to the file's own directory.
-
-### Changed
-
-- `audit`: the `walkthrough` orchestrator caps the reviewer report at 25 findings instead of 15, so the automatic batch triage (15 findings or more) can fire on a capped report rather than only at exactly 15.
-- `audit`: the Ouroboros bridge's last tested version (`MAX_TESTED`) is 0.54.4 instead of 0.38.2, so an up-to-date install no longer warns on every walkthrough; the QA threshold stays unvalidated against that version.
-- `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
 
 ## [0.1.1] - 2026-06-03
 

@@ -1,6 +1,6 @@
 ---
 name: walkthrough-ouroboros-bridge
-description: Centralizes all Ouroboros integration for the review walkthrough, covering detection, QA on ambiguous findings, cross-model validation (L1 intra-family + L2 cross-provider), lateral thinking on stuck points, final evaluate, and drift check.
+description: Centralizes all Ouroboros integration for the review walkthrough, covering detection, QA on ambiguous findings, cross-model validation (L1 intra-family Agent + L2 cross-provider through OpenRouter, the latter independent of Ouroboros), lateral thinking on stuck points, final evaluate, and drift check.
 ---
 
 # Review Walkthrough: Ouroboros Bridge
@@ -29,7 +29,7 @@ DRIFT_WARN_THRESHOLD = 0.3     # drift_score > this → surface as warning
 The two threshold constants are LLM-produced score interpretations and may drift across model versions.
 They are calibrated against Ouroboros `MAX_TESTED`.
 When bumping `MAX_TESTED`, re-validate the thresholds against the new model behaviour and adjust if needed; do not silently inherit the prior values.
-Validated against 0.54.4 on 2026-09-15: detection, L1, L2 through `ouroboros_start_evaluate` and `ouroboros_job_wait`, the final evaluate and the drift check; `QA_PASS_THRESHOLD` was not exercised, and `DRIFT_WARN_THRESHOLD` fired on a seed unrelated to the reviewed changes, so neither threshold is recalibrated.
+Validated against 0.54.4 on 2026-09-15: detection, L1, the final evaluate and the drift check (L2 was then exercised through `ouroboros_start_evaluate` and `ouroboros_job_wait`, before it moved to `scripts/openrouter-verdict.py` the same day); `QA_PASS_THRESHOLD` was not exercised, and `DRIFT_WARN_THRESHOLD` fired on a seed unrelated to the reviewed changes, so neither threshold is recalibrated.
 
 Baseline: all walkthrough features require ≥ `MIN_OUROBOROS`.
 There is no per-feature compatibility table: if the version is below the floor, the bridge reports Ouroboros unavailable in full.
@@ -125,15 +125,14 @@ No deduplication, no rephrasing, no silent skip: that is the "no silent fallback
 **Anomaly ordering** (deterministic, applied by the bridge before returning):
 
 1. By severity: all `error` first, then all `warn`, then all `info`.
-2. Within each severity, by source step in detection order: (a) Active version resolution (step 2; includes the manifest-fallback info from 2b), (b) Version classification row anomaly (step 3 / decision table), (c) Length-≥-2 info (step 5, appended after row resolution), (d) Per-finding anomalies emitted later during Step 2b (L1 failure, claude-only-without-key).
+2. Within each severity, by source step in detection order: (a) Active version resolution (step 2; includes the manifest-fallback info from 2b), (b) Version classification row anomaly (step 3 / decision table), (c) Length-≥-2 info (step 5, appended after row resolution), (d) Per-finding anomalies emitted later during Step 2b (L1 failure, claude-only-without-key, L2 errored).
    These belong to the per-finding render path, not the detection block, but follow the same severity-first/source-order rule when accumulated.
 
 Render rules for the parent (also restated in SKILL.md):
-- Consensus label resolves on the pair (`available`, `consensus_available`):
-- `available: false` (any consensus state) → "consensus moot, Ouroboros unavailable".
-- `available: true`, `consensus_available: true` → "consensus enabled".
-- `available: true`, `consensus_available: false` → "consensus unavailable (no OPENROUTER_API_KEY)".
-Exactly these three labels: never invent intermediates.
+- L2 label resolves on `consensus_available` alone, since L2 runs without Ouroboros (the field keeps its historical name):
+- `consensus_available: true` → "L2 enabled".
+- `consensus_available: false` → "L2 unavailable (no OPENROUTER_API_KEY)".
+Exactly these two labels: never invent intermediates.
 - Anomaly severity prefix: `info` → no prefix, `warn` → `⚠`, `error` → `✗`.
 
 ## QA: second opinion on ambiguous findings (Step 2b)
@@ -186,13 +185,51 @@ Surface this as `info`: `L1 failed (<mode>) — escalated to L2`.
 Do not silently accept the finding under the general "report and skip" error policy.
 
 **Level 2: Cross-provider.** Triggers when: (a) finding is Blocking/Required, (b) L1 divergence on any severity, or (c) the finding carries a `claude-only` blindspot tag (mandatory regardless of severity, see "Blindspot input routing" below).
-Requires `OPENROUTER_API_KEY`.
-Call `ouroboros_evaluate` (not `ouroboros_qa`) with `trigger_consensus: true`, `session_id: "walkthrough"` (same session_id as Step 3 evaluate, so drift check sees both Step 2b L2 calls and the Step 3 final evaluate as a single logical session), `artifact` (code section), `acceptance_criterion` (finding's claim as pass/fail), `artifact_type` ("code"), `working_dir` (project root).
-Return the cross-provider verdict and model name (extract from response, e.g. "anthropic/claude-sonnet-4 via OpenRouter").
+Requires `OPENROUTER_API_KEY`, and nothing from Ouroboros: run it even when detection reported `available: false`.
+
+L2 asks one non-Claude model, through OpenRouter, whether the finding holds, using `scripts/openrouter-verdict.py`.
+It does not go through `ouroboros_evaluate` with `trigger_consensus`: the Ouroboros plugin starts its MCP server with `--llm-backend claude_code`, whose adapter replaces every non-Anthropic `openrouter/...` voter with the default Claude model, so that consensus is Claude voting under other models' names.
+
+**Model selection.** One external model per finding, both IDs taken from the curated table in `audit/blindspot/agents/cross-model-judge.md` (update them here when that table changes):
+- `openai/gpt-5.6-sol` by default;
+- `google/gemini-3.1-pro-preview` when the input came from `blindspot` and the external model carried from SKILL.md Step 1 (parsed from the report's `### Cross-Model Findings (<model>)` header) is an `openai/` model.
+A `claude-only` finding is one that model did not flag, so asking it again biases the answer.
+
+**Call.** Substitute the four placeholders (`<MODEL>`, the claim, the code section, `<FILE PATH>`) and run the block as one Bash call.
+The claim is the finding's claim as the reviewer stated it; the code section is the code it targets, verbatim.
+Placeholders left in place fail loudly rather than silently, exiting 2: the block rejects an unsubstituted claim or code line, and the script rejects a model ID that does not match `provider/model` and an empty claim or code file.
+The `<FILE PATH>` label is not checked, since it only annotates the prompt.
+
+```bash
+SCRIPT="${CLAUDE_SKILL_DIR}/scripts/openrouter-verdict.py"
+CLAIM_FILE=$(mktemp)
+CODE_FILE=$(mktemp)
+trap 'rm -f "$CLAIM_FILE" "$CODE_FILE"' EXIT
+cat >"$CLAIM_FILE" <<'__L2_CLAIM_EOF__'
+... finding claim ...
+__L2_CLAIM_EOF__
+cat >"$CODE_FILE" <<'__L2_CODE_EOF__'
+... code section ...
+__L2_CODE_EOF__
+if grep -qxF '... finding claim ...' "$CLAIM_FILE" || grep -qxF '... code section ...' "$CODE_FILE"; then
+  echo "L2 call malformed: unsubstituted claim or code placeholder" >&2
+  exit 2
+fi
+python3 "$SCRIPT" --model '<MODEL>' --claim-file "$CLAIM_FILE" --code-file "$CODE_FILE" --path '<FILE PATH>'
+echo "exit=$?"
+```
+
+`${CLAUDE_SKILL_DIR}` resolves as in `agents/orchestrator.md` ("Reviewer selection"): when the runtime does not export it, substitute the path announced at the top of the skill prompt.
+Keep the heredoc delimiters quoted so the claim and the code reach the files byte for byte.
+
+**Result.** The script prints one JSON object: `verdict` (`valid` / `invalid` / null), `rationale`, `requested_model`, `served_model`, `error`.
+- Exit 0: `valid` means the external model confirms the finding, `invalid` means it rejects it; show the rationale on the finding's L2 line.
+- Exit 1: the call or its parsing failed (missing key, HTTP error, timeout, truncated or non-JSON answer); apply the L2 row of "Error handling" with `error` as the reason.
+- Exit 2: the invocation itself was malformed (stderr carries the reason); apply the same row with `L2 call malformed: <stderr first line>` as the reason, and do not retry with guessed values.
 
 **Model transparency:** always report the alternate model identity (the one spawned, not the main).
 L1: `Agent (<alternate>)` where `<alternate>` is the family token from the selection table (`sonnet`, `opus`, or `sonnet` for the default branch; Haiku never appears as an alternate).
-L2: model name from response, or "unknown, not returned by evaluate".
+L2: `served_model` from the script's result, the model OpenRouter reports as having answered; when it is null, `<requested_model> (served model not reported)`.
 
 If `OPENROUTER_API_KEY` not set, L2 unavailable.
 L1 divergences flagged but not escalated.
@@ -256,15 +293,10 @@ Trade-off accepted: a single very large fix may be dropped even if Critical; thi
 - **Fallback (prose):** only if content cannot be extracted.
 Flag explicitly.
 
-Parameters: `session_id` ("walkthrough"), `acceptance_criterion` (original review goal + " Changes introduced during this review walkthrough only; pre-existing issues are out of scope."), `trigger_consensus` (see truth table below), `working_dir` (project root).
+Parameters: `session_id` ("walkthrough"), `acceptance_criterion` (original review goal + " Changes introduced during this review walkthrough only; pre-existing issues are out of scope."), `trigger_consensus` (always `false`, see below), `working_dir` (project root).
 
-`trigger_consensus` truth table (always pass the parameter, never omit):
-
-  | `OPENROUTER_API_KEY` set | Any fix reverted during walkthrough | `trigger_consensus` |
-  | ------------------------ | ----------------------------------- | ------------------- |
-  | no                       | —                                   | `false`             |
-  | yes                      | yes                                 | `true`              |
-  | yes                      | no                                  | `false`             |
+Always pass `trigger_consensus: false`, never omit the parameter.
+Ouroboros consensus runs its voters through the MCP server's LLM backend, and under the plugin's `--llm-backend claude_code` every non-Anthropic voter becomes the default Claude model, so a consensus here adds no cross-provider signal; the walkthrough's cross-provider check is L2 in Step 2b.
 
 **Post-filter:** cross-reference flagged issues against diff.
 Discard issues on unmodified lines.
@@ -314,17 +346,17 @@ Return score and analysis.
 
 ## Error handling
 
-The default policy is "report inline and continue": Ouroboros failures never abort the walkthrough.
+The default policy is "report inline and continue": bridge failures (Ouroboros calls, the L1 Agent, the L2 script) never abort the walkthrough.
 But silent acceptance of high-stakes failures violates the no-silent-fallback contract that the rest of this file enforces.
 Apply per-step rules:
 
-  | Failing step               | Stakes                                                                                            | Policy on failure                                                                                                                                                           |
-  | -------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | QA auto (Step 2b)          | Low — second opinion on an already-ambiguous verdict                                              | Report inline `"QA auto: error — <one-line reason>. Skipped."`, no anomaly.                                                                                                 |
-  | Lateral think (Step 2b-2c) | Low — creative unblocking is best-effort                                                          | Report inline `"Lateral think: error — <one-line reason>. Skipped."`, no anomaly.                                                                                           |
-  | Cross-model L1 (Step 2b)   | Depends on severity — see L1 failure handling above (this section formalizes the same rule)       | Important+ findings: escalate to L2 if key set; else mark finding `unverified` + per-finding `warn` anomaly. Below Important+: report and skip silently is acceptable.      |
-  | Cross-model L2 (Step 2b)   | High on Blocking/Required and `claude-only` findings — the entire point of the call is unverified | Mark the finding `unverified` and emit a per-finding `warn` anomaly: `Cross-provider verification failed: L2 errored (<reason>). Finding accepted without consensus.`       |
-  | Final Evaluate (Step 3)    | High — post-fix codebase was never validated                                                      | Report in the Mechanisms block with `⚠` prefix: `⚠ evaluate failed (<one-line reason>) — post-fix codebase not validated.` Do not render a success-style "evaluate ✓" line. |
-  | Drift check (Step 3)       | Medium — drift on ≥ 4 fixes is a real degradation guard                                           | Report in the Mechanisms block with `⚠` prefix: `⚠ drift check failed (<one-line reason>) — cumulative drift unverified.`                                                   |
+  | Failing step               | Stakes                                                                                            | Policy on failure                                                                                                                                                                       |
+  | -------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | QA auto (Step 2b)          | Low — second opinion on an already-ambiguous verdict                                              | Report inline `"QA auto: error — <one-line reason>. Skipped."`, no anomaly.                                                                                                             |
+  | Lateral think (Step 2b-2c) | Low — creative unblocking is best-effort                                                          | Report inline `"Lateral think: error — <one-line reason>. Skipped."`, no anomaly.                                                                                                       |
+  | Cross-model L1 (Step 2b)   | Depends on severity — see L1 failure handling above (this section formalizes the same rule)       | Important+ findings: escalate to L2 if key set; else mark finding `unverified` + per-finding `warn` anomaly. Below Important+: report and skip silently is acceptable.                  |
+  | Cross-model L2 (Step 2b)   | High on Blocking/Required and `claude-only` findings — the entire point of the call is unverified | Mark the finding `unverified` and emit a per-finding `warn` anomaly: `Cross-provider verification failed: L2 errored (<reason>). Finding accepted without cross-provider verification.` |
+  | Final Evaluate (Step 3)    | High — post-fix codebase was never validated                                                      | Report in the Mechanisms block with `⚠` prefix: `⚠ evaluate failed (<one-line reason>) — post-fix codebase not validated.` Do not render a success-style "evaluate ✓" line.             |
+  | Drift check (Step 3)       | Medium — drift on ≥ 4 fixes is a real degradation guard                                           | Report in the Mechanisms block with `⚠` prefix: `⚠ drift check failed (<one-line reason>) — cumulative drift unverified.`                                                               |
 
 The walkthrough still completes in all cases; the user sees the precise degradation rather than a generic "Skipped".

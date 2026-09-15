@@ -335,9 +335,9 @@ Present the report using this template:
 
 **Audit skill:** <skill-name>
 **Verdict:** <Strong circularity / Model circularity>
-**Countermeasures applied:** Cross-model judge via OpenRouter (<model-name>)
+**Countermeasures applied:** Cross-model judge via OpenRouter (<model-id>)
 
-### Cross-Model Findings (<model-name>)
+### Cross-Model Findings (<model-id>)
 
 <Findings from the external model, formatted as a numbered list with severity>
 
@@ -384,7 +384,7 @@ Where: `R = E + C` (total raw count across both sources before convergence); `A`
 ### Transparency
 
 - **Circularity type:** <verdict>
-- **External model used:** <model name> via OpenRouter
+- **External model used:** <model-id> via OpenRouter
 - **Residual bias risk:** Cross-model judging reduces but does not eliminate bias.
   The external model has its own biases. Convergent findings are highest confidence.
   Divergent findings warrant human attention.
@@ -448,7 +448,7 @@ No cross-model countermeasure was available.
 
 ### Next step
 
-Run `/audit:walkthrough` (no arguments) to process these findings interactively. Without cross-model convergence data, all Important+ findings will go through Claude's standard L2 cross-provider check (no bucket routing, since no external model contributed).
+Run `/audit:walkthrough` (no arguments) to process these findings interactively. Without cross-model convergence data, findings go through the walkthrough's standard L2 cross-provider check, on Blocking/Required findings and L1 divergences (no bucket routing, since no external model contributed).
 ```
 
 ## Important constraints

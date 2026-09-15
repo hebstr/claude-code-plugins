@@ -177,14 +177,13 @@ Before processing the first finding, report a brief capabilities status block so
   Three components, in order:
   1. **Version line**: always shown, even when everything is normal.
      Format:
-     - `available: true`, `version` set → "Ouroboros `{version}` ✓ (`{consensus label}`)."
-     - `available: true`, `version` null → "Ouroboros available, version unknown (`{consensus label}`)."
-     - `available: false`, `version` set → "Ouroboros `{version}` unavailable (`{consensus label}`)."
-     - `available: false`, `version` null → "Ouroboros not available (`{consensus label}`)."
-     - `{consensus label}` resolves as follows (exact strings: never invent intermediates):
-       - `available: false` (any `consensus_available`) → "consensus moot, Ouroboros unavailable".
-       - `available: true`, `consensus_available: true` → "consensus enabled".
-       - `available: true`, `consensus_available: false` → "consensus unavailable (no OPENROUTER_API_KEY)".
+     - `available: true`, `version` set → "Ouroboros `{version}` ✓ (`{L2 label}`)."
+     - `available: true`, `version` null → "Ouroboros available, version unknown (`{L2 label}`)."
+     - `available: false`, `version` set → "Ouroboros `{version}` unavailable (`{L2 label}`)."
+     - `available: false`, `version` null → "Ouroboros not available (`{L2 label}`)."
+     - `{L2 label}` resolves on `consensus_available` alone, since L2 does not depend on Ouroboros (exact strings: never invent intermediates):
+       - `consensus_available: true` → "L2 enabled".
+       - `consensus_available: false` → "L2 unavailable (no OPENROUTER_API_KEY)".
   2. **Anomalies block**: render every entry from `anomalies[]` verbatim on its own line, in the order returned, with severity prefix: `info` → no prefix, `warn` → `⚠`, `error` → `✗`.
      Never drop, dedupe, rephrase, or summarize.
      This is the "no silent fallback" guarantee.
@@ -202,12 +201,13 @@ Before processing the first finding, report a brief capabilities status block so
   L2 will skip the agreed bucket and force on Claude-only."
   When the `**Counts:**` line is absent in the upstream report (older blindspot version, no `R` available), omit the `R raw → ` prefix and fall back to "blindspot input: N agreed / M Claude-only / K external-only ...".
 
-If Ouroboros is available, add a brief glossary of the mechanisms that may fire during the walkthrough, so the user understands the transparency lines they will see later:
+Add a brief glossary of the mechanisms that may fire during the walkthrough, so the user understands the transparency lines they will see later.
+List only the ones available this time: the two cross-model lines always (L2 marked unavailable when `OPENROUTER_API_KEY` is not set), the others only when Ouroboros is available.
 
 > **Mechanisms available for this walkthrough:**
 > - *QA auto*: automated second opinion when the verdict on a finding is genuinely uncertain (via `ouroboros_qa`)
 > - *Cross-model L1 (intra-family)*: independent re-evaluation by an Agent with an alternate Claude model (e.g. Sonnet if main is Opus); triggers on Important+ findings
-> - *Cross-model L2 (cross-provider)*: independent verdict from a different provider via OpenRouter, using `ouroboros_evaluate` with `trigger_consensus: true`; triggers on Blocking/Required, `claude-only` blindspot findings, or L1 divergence
+> - *Cross-model L2 (cross-provider)*: independent `valid`/`invalid` verdict from a non-Claude model via OpenRouter, using `scripts/openrouter-verdict.py` (runs with or without Ouroboros); triggers on Blocking/Required, `claude-only` blindspot findings, or L1 divergence
 > - *Lateral think*: creative unblocking when a point stays stuck after 2+ exchanges
 > - *Evaluate*: final validation of all applied changes (triggers when ≥ 2 fixes)
 > - *Drift check*: detects whether cumulative fixes shifted the code away from its original intent (triggers when ≥ 4 fixes)
@@ -220,18 +220,17 @@ The example below demonstrates the target density.
 Example:
 > Context: personal (detected from path ~/scripts/).
 Reviewer: critical-code-reviewer (calibrated).
-Ouroboros 0.54.4 ✓ (consensus enabled).
+Ouroboros 0.54.4 ✓ (L2 enabled).
 Author's defense active on 4/6 findings.
 Severity reordering applied: 2 Blocking first.
 Batch mode: active (32 findings ≥ 15).
 
 ### Adversarial degradation notice (blocking)
 
-Triggers when `consensus_available: false` (i.e., `OPENROUTER_API_KEY` not set in the environment).
-When the key is set, skip this section silently: the standard transparency block already reports "consensus enabled".
-Also skip when the Ouroboros enrichment notice fires (Ouroboros absent → L2 cannot run regardless of the key; the enrichment notice already covers L2 in its disabled list).
+Triggers when `consensus_available: false` (i.e., `OPENROUTER_API_KEY` not set in the environment), whether or not Ouroboros is available: L2 depends on the key alone.
+When the key is set, skip this section silently: the standard transparency block already reports "L2 enabled".
 
-When triggered, immediately after the transparency status block (and the mechanism glossary if Ouroboros is available), display the following notice in the user's language and **wait for an explicit user response** before proceeding to Step 1b or Step 2.
+When triggered, immediately after the transparency status block and the mechanism glossary, display the following notice in the user's language and **wait for an explicit user response** before proceeding to Step 1b or Step 2.
 This is the only blocking interaction in Step 1: fire it exactly once per walkthrough, never repeat for individual findings.
 
 ```
@@ -271,7 +270,7 @@ To enable cross-provider adversarial validation:
 Triggers when the bridge reports `available: false` AND `version: null`: i.e., the Ouroboros plugin is genuinely not installed.
 Skip when `version` is non-null: the standard anomalies block already surfaces a more precise `error` line about cache-present-but-MCP-unavailable, and a duplicate notice would clutter the output.
 
-When triggered, display the following notice in the user's language **immediately after** the transparency status block, **instead of** the Adversarial degradation notice above (see the guard added to that section).
+When triggered, display the following notice in the user's language **immediately after** the transparency status block, and before the Adversarial degradation notice above when that one fires too.
 The walkthrough proceeds without waiting: this is informational, not blocking.
 Fire exactly once per walkthrough, never on individual findings.
 
@@ -279,8 +278,6 @@ Fire exactly once per walkthrough, never on individual findings.
 ℹ Ouroboros not detected — this walkthrough runs without the following enrichments:
 
   - QA auto — automated second opinion on uncertain findings
-  - Cross-model L1 — intra-family Claude re-evaluation on Important+ findings
-  - Cross-model L2 — cross-provider verdict via OpenRouter (requires Ouroboros even when OPENROUTER_API_KEY is set)
   - Lateral think — creative unblocking when a point stays stuck
   - Evaluate — final validation of all applied changes (≥ 2 fixes)
   - Drift check — detects whether cumulative fixes shifted code intent
@@ -292,7 +289,7 @@ To enable for future walkthroughs (optional):
 Continuing without — no input needed.
 ```
 
-**Why non-blocking.** Unlike the Adversarial degradation notice, Ouroboros absence does not silently downgrade a safety guarantee the user might assume is on: the consensus label correctly resolves to "consensus moot, Ouroboros unavailable" in the status block, and L2 simply does not run.
+**Why non-blocking.** Unlike the Adversarial degradation notice, Ouroboros absence does not silently downgrade a safety guarantee the user might assume is on: the version line reports Ouroboros unavailable in the status block, and L2 keeps running whenever `OPENROUTER_API_KEY` is set.
 Findings are still validated by the reviewer.
 Forcing an abort here would not improve this walkthrough's safety, only delay it.
 
@@ -375,9 +372,11 @@ Examples:
 - "Cross-model L1: Agent (sonnet) agrees; finding confirmed."
 - "Cross-model L1: Agent (sonnet) disagrees → escalating to L2."
 - "Cross-model L1: Agent (sonnet) failed (timeout) → escalated to L2 (key set)."
-- "⚠ Cross-model L1: Agent (sonnet) failed (timeout); L2 unavailable.
+- "⚠ Cross-model verification incomplete: L1 timeout, L2 unavailable.
+Only main-model opinion available.
 Verification tagged 'unverified' (audit meta-tag, distinct from the verdict); the verdict is still one of ACCEPTED/REJECTED/NOTED/DEFERRED, assigned from Claude's solo assessment alone."
-- "Cross-model L2: score 0.38 (model: anthropic/claude-sonnet-4 via OpenRouter); finding confirmed."
+- "Cross-model L2: valid (openai/gpt-5.6-sol via OpenRouter): `${1:?}` does not guard the second call site; finding confirmed."
+- "Cross-model L2: invalid (google/gemini-3.1-pro-preview via OpenRouter): the loop exits on the sentinel; divergence with Claude's verdict surfaced to the user."
 - "Cross-model: L1 only (not Blocking/Required, no divergence)."
 - "Cross-model: skipped (finding classified Minor)."
 - "Cross-model L2: skipped; finding tagged 'agreed' from blindspot input (already cross-validated by <model> in Phase 1)."
@@ -385,7 +384,7 @@ Verification tagged 'unverified' (audit meta-tag, distinct from the verdict); th
 - "Cross-model L2: triggered (per standard severity rules: Blocking/Required); finding tagged 'external-only' from blindspot input.
 Claude tends to under-rate these, so the cross-provider verdict is load-bearing when it fires.
 L2 is NOT forced on external-only by the bucket tag alone."
-- "⚠ Cross-model L2: mandatory but unavailable; finding tagged 'claude-only', OPENROUTER_API_KEY not set; accepted without cross-provider verification (per bridge no-silent-fallback rule)."
+- "⚠ L2 mandatory but unavailable: claude-only finding accepted without cross-provider verification" (OPENROUTER_API_KEY not set; bridge no-silent-fallback rule).
 
 This takes one line per mechanism: do not let it bloat the output.
 
@@ -507,11 +506,12 @@ After the status counts, add a **Mechanisms used** block summarizing what fired 
 For each mechanism, report: count of invocations, and if zero, the reason in parentheses.
 When the input came from `blindspot`, add a `blindspot input` segment first, summarizing bucket distribution and L2 savings/forces from the bucket-aware routing.
 Example:
-> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required, 1 by L1 divergence; model: anthropic/claude-sonnet-4 via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
+> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required, 1 by L1 divergence; model: openai/gpt-5.6-sol via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
 
 The bridge returns pre-formatted mechanism summaries (cross-model status, evaluate results, drift score).
 Include them verbatim.
-If Ouroboros was not available, state: "Ouroboros: not available; walkthrough ran without automated QA, consensus, or drift check."
+If Ouroboros was not available, state: "Ouroboros: not available; walkthrough ran without automated QA, evaluate, lateral think, or drift check."
+(L1 and L2 are reported on their own segments, since they run without Ouroboros.)
 
 **Low fix-count rendering.** When fewer than 2 fixes were applied, do not run the bridge's evaluate (per the bridge's below-trigger contract).
 Render in the Mechanisms block: `evaluate skipped (only N fix(es))` (where N is 0 or 1).
@@ -637,25 +637,24 @@ After both actions, briefly report what was persisted (e.g., "2 items added to D
 
 ## Ouroboros integration
 
-All Ouroboros tool calls (detection, QA, cross-model validation, lateral think, evaluate, drift check) are handled by `agents/ouroboros-bridge.md`.
+All Ouroboros tool calls (detection, QA, lateral think, evaluate, drift check) and the cross-model validation (L1 Agent, L2 through `scripts/openrouter-verdict.py`) are handled by `agents/ouroboros-bridge.md`.
 At each trigger point listed below, read the matching section of that file and execute it yourself, in this main context, never as a subagent: its results and anomalies render inline in the walkthrough, and its L1 check waits for its own Agent's completion notification from this context.
-If Ouroboros is not available, skip silently.
+If Ouroboros is not available, skip its sections silently; the cross-model validation still runs, L1 on Important+ findings and L2 whenever `OPENROUTER_API_KEY` is set.
 
 **Trigger points:**
 - **Step 1 (detection):** call the bridge to probe availability.
 Use the result for the transparency status.
 - **Step 2b (QA):** when your re-evaluation is genuinely uncertain, run the bridge's QA for a second opinion.
 - **Step 2b (cross-model L1/L2):** on Important+ findings, run the bridge's cross-model validation.
-It handles Agent spawning (L1) and `ouroboros_evaluate` with consensus (L2).
+It handles Agent spawning (L1) and the OpenRouter verdict script (L2).
 - **Step 2b-2c (lateral think):** when stuck (2+ exchanges or regression revert), run the bridge's lateral think.
 - **Step 3 (evaluate):** when >= 2 fixes applied, run the bridge's evaluate for final validation.
 It builds the artifact from git diff.
 - **Step 3 (drift):** when >= 4 fixes applied, run the bridge's drift check.
 
 Present all Ouroboros results inline as described in the mechanism transparency format (Step 2b).
-Runtime errors are caught by the bridge: never let an Ouroboros failure block the walkthrough.
+Runtime errors are caught by the bridge: never let an Ouroboros, L1 or L2 failure block the walkthrough.
 
-**Model selection (L2 consensus).** The L2 consensus model roster (advocate, devil, judge; Ouroboros 0.54.4 defaults `openrouter/anthropic/claude-opus-5`, `openrouter/openai/gpt-4o`, `openrouter/google/gemini-2.5-pro`) is owned by Ouroboros, not by this skill.
-The `ouroboros_evaluate` MCP schema does not accept a model parameter, so the bridge cannot influence the choice per-call.
-To customize without forking Ouroboros, set the env vars `OUROBOROS_CONSENSUS_MODELS`, `OUROBOROS_CONSENSUS_ADVOCATE_MODEL`, `OUROBOROS_CONSENSUS_DEVIL_MODEL`, or `OUROBOROS_CONSENSUS_JUDGE_MODEL` before launching Claude Code (MCP servers inherit env at startup), or edit `~/.ouroboros/config.yaml` under the `consensus.models` key (reloaded per call).
-The actual judge model is always reported post-facto in the Step 3 Mechanisms block, so the audit trail is complete regardless of how it was configured.
+**Model selection (L2).** The bridge picks one external model per finding from the curated table in `audit/blindspot/agents/cross-model-judge.md`: `openai/gpt-5.6-sol` by default, `google/gemini-3.1-pro-preview` when blindspot's first phase already used an OpenAI model.
+L2 does not use Ouroboros consensus, whose non-Anthropic voters become the default Claude model under the plugin's `--llm-backend claude_code`, so `~/.ouroboros/config.yaml` `consensus` settings have no effect on it.
+The model that actually answered (`served_model`) is reported on each finding's L2 line and in the Step 3 Mechanisms block.
