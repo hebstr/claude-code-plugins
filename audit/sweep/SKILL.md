@@ -70,8 +70,8 @@ This content will be injected into every agent prompt as "Known false positive p
 #### Report to user
 
 Report the detected type, size category, LOC count, number of agents to launch, whether calibration memory was found, and which skill dependencies are available (check the skill list).
-Always check `/critical-code-reviewer` (Agent A) and `/audit:walkthrough` (Phase 4).
-For R package projects, also check `/testing-r-packages`, `/r-package-development` (Agent C), and `/cran-extrachecks` (Agent D).
+Always check `/posit-dev:critical-code-reviewer` (Agent A) and `/audit:walkthrough` (Phase 4).
+For R package projects, also check `/r-lib:testing-r-packages`, `/r-lib:r-package-development` (Agent C), and `/r-lib:cran-extrachecks` (Agent D).
 Report availability of each before proceeding.
 
 ### Phase 1: Launch agents
@@ -84,11 +84,11 @@ All projects get agents from the following roster.
 Each agent has a **disjoint scope**: no overlap between agents.
 
 **Agent A, Code Correctness** (subagent_type: `general-purpose`)
-This agent must first attempt to invoke the `/critical-code-reviewer` skill via the `Skill` tool.
+This agent must first attempt to invoke the `/posit-dev:critical-code-reviewer` skill via the `Skill` tool.
 If the skill is not available (not installed or invocation fails), fall back to performing the review itself using the scope below.
 Scope: bugs, edge cases, error handling, security issues, data handling correctness, regex validity, type mismatches.
 Exclude: naming conventions, project structure, documentation, test quality, packaging/compliance.
-Severity mapping: if `/critical-code-reviewer` is used, map its 4 tiers to the 3-tier system: merge "Strong Suggestions" and "Noted" into "Suggestion".
+Severity mapping: if `/posit-dev:critical-code-reviewer` is used, map its 4 tiers to the 3-tier system: merge "Strong Suggestions" and "Noted" into "Suggestion".
 Confidence rule: only report findings you are confident are real issues.
 If you start analyzing a potential issue and realize it is not a bug or is handled correctly, drop it.
 Do not include withdrawn or uncertain findings in your output.
@@ -104,7 +104,7 @@ If yes, drop it (Agent C).
 Only report findings about project layout, file organization, dependency management, config coherence, naming, and API surface.
 
 **Agent C, Documentation & Tests** (subagent_type: `general-purpose`)
-For R package projects: this agent must first invoke the `/testing-r-packages` skill via the `Skill` tool to review test quality, then invoke the `/r-package-development` skill via the `Skill` tool to check roxygen2 documentation conventions and devtools workflow compliance, then continue with its full scope below.
+For R package projects: this agent must first invoke the `/r-lib:testing-r-packages` skill via the `Skill` tool to review test quality, then invoke the `/r-lib:r-package-development` skill via the `Skill` tool to check roxygen2 documentation conventions and devtools workflow compliance, then continue with its full scope below.
 If either skill is not available, fall back to reviewing the corresponding facet using the scope below only.
 Scope: documentation coverage and quality, test coverage and quality, README/vignettes, examples, reproducibility (renv, lock files, CI).
 Exclude: code correctness, architecture decisions, naming conventions, packaging/compliance.
@@ -114,7 +114,7 @@ This agent adapts to the project type:
 
   | Project type   | Skill / focus                                                                                                                                                                                        | Agent type        |
   | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-  | R package      | `/cran-extrachecks` — CRAN submission readiness                                                                                                                                                      | `general-purpose` |
+  | R package      | `/r-lib:cran-extrachecks` — CRAN submission readiness                                                                                                                                                | `general-purpose` |
   | Python package | pyproject.toml correctness, packaging best practices, typing/linting config                                                                                                                          | `general-purpose` |
   | Rust           | Cargo.toml, clippy-level checks, edition compliance                                                                                                                                                  | `general-purpose` |
   | Node/JS        | package.json, bundler config, ESLint/Prettier coherence                                                                                                                                              | `general-purpose` |
@@ -123,16 +123,16 @@ This agent adapts to the project type:
   | Generic        | Skip this agent entirely                                                                                                                                                                             | —                 |
 
 When the "Skill / focus" column references a skill name (prefixed with `/`), the agent prompt must explicitly instruct the agent to invoke that skill via the `Skill` tool.
-If the skill is not available (not installed or invocation fails), the agent must fall back to performing the review itself using the focus areas described in the column (e.g., for R packages: CRAN submission readiness checks without `/cran-extrachecks`).
+If the skill is not available (not installed or invocation fails), the agent must fall back to performing the review itself using the focus areas described in the column (e.g., for R packages: CRAN submission readiness checks without `/r-lib:cran-extrachecks`).
 For all other rows, the column describes the focus areas to include directly in the agent prompt.
 
 #### Scaling by project size
 
-  | Size                       | Agents launched | Adaptation                                                                                                                                                                                                                                                                                                                        |
-  | -------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | **Small** (< 1500 LOC)     | 2–3             | Merge Agent C into Agent B: add C's scope items to B's scope and remove them from B's exclusions. Also carry over Agent C's skill invocations (e.g., `/testing-r-packages` and `/r-package-development` for R packages) into Agent B's prompt. Skip Agent D unless project-type-specific compliance is critical (e.g., R → CRAN). |
-  | **Medium** (1500–5000 LOC) | 3–4             | All 4 agents, but skip Agent D for Generic projects.                                                                                                                                                                                                                                                                              |
-  | **Large** (> 5000 LOC)     | 4               | All 4 agents.                                                                                                                                                                                                                                                                                                                     |
+  | Size                       | Agents launched | Adaptation                                                                                                                                                                                                                                                                                                                                    |
+  | -------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | **Small** (< 1500 LOC)     | 2–3             | Merge Agent C into Agent B: add C's scope items to B's scope and remove them from B's exclusions. Also carry over Agent C's skill invocations (e.g., `/r-lib:testing-r-packages` and `/r-lib:r-package-development` for R packages) into Agent B's prompt. Skip Agent D unless project-type-specific compliance is critical (e.g., R → CRAN). |
+  | **Medium** (1500–5000 LOC) | 3–4             | All 4 agents, but skip Agent D for Generic projects.                                                                                                                                                                                                                                                                                          |
+  | **Large** (> 5000 LOC)     | 4               | All 4 agents.                                                                                                                                                                                                                                                                                                                                 |
 
 #### Agent prompt requirements
 
@@ -212,10 +212,10 @@ Run `/audit:walkthrough` to process these findings one by one interactively.
 - **Duplicate count** in the summary line
 - The `---` separator and `/audit:walkthrough` footer
 - If an agent failed or timed out, note the coverage gap at the bottom
-- If Agent A used the inline fallback instead of `/critical-code-reviewer`, show `Agent A (correctness, inline fallback)` instead of `Agent A (correctness via critical-code-reviewer)` in the Agents line
+- If Agent A used the inline fallback instead of `/posit-dev:critical-code-reviewer`, show `Agent A (correctness, inline fallback)` instead of `Agent A (correctness via critical-code-reviewer)` in the Agents line
 - For R package projects, Agent C must report which R-specific skills were successfully invoked: `Agent C (docs/tests via testing-r-packages + r-package-development)` when both worked, `Agent C (docs/tests via testing-r-packages)` or `Agent C (docs/tests via r-package-development)` when only one was available, or `Agent C (docs/tests, no r-lib skills)` when neither was available.
 For non-R projects, always show `Agent C (docs/tests)`.
-- When Agent D invokes a skill (e.g., `/cran-extrachecks`), show the skill name: `Agent D (cran-extrachecks) ✓`.
+- When Agent D invokes a skill (e.g., `/r-lib:cran-extrachecks`), show the skill name: `Agent D (cran-extrachecks) ✓`.
 If the skill was unavailable and the agent fell back to inline review, show `Agent D ([focus], inline fallback)` (e.g., `Agent D (CRAN readiness, inline fallback)`).
 For project types where Agent D uses no skill, show the focus directly: `Agent D (pyproject.toml) ✓`.
 

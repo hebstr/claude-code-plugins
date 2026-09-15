@@ -17,7 +17,7 @@ This prevents agents from re-flagging known false positives (e.g., R idioms: laz
 
 ### Skill fallback and transparency chain
 
-Every agent that invokes an external skill (A → `/critical-code-reviewer`, C → `/testing-r-packages` + `/r-package-development`, D → `/cran-extrachecks`) follows a three-layer contract: (1) instruction-level fallback if the skill is absent, (2) Phase 0 reports skill availability before launch, (3) Phase 3 Agents line shows exactly which skills were used vs inline fallback.
+Every agent that invokes an external skill (A → `/posit-dev:critical-code-reviewer`, C → `/r-lib:testing-r-packages` + `/r-lib:r-package-development`, D → `/r-lib:cran-extrachecks`) follows a three-layer contract: (1) instruction-level fallback if the skill is absent, (2) Phase 0 reports skill availability before launch, (3) Phase 3 Agents line shows exactly which skills were used vs inline fallback.
 
 ### LOC-based scaling
 

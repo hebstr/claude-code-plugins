@@ -18,6 +18,7 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Fixed
 
+- `audit`: `sweep` told its agents to invoke external skills by bare name (`/critical-code-reviewer`, `/testing-r-packages`, `/r-package-development`, `/cran-extrachecks`), while the `Skill` tool names a plugin skill `plugin:skill`; the invocations now use `posit-dev:critical-code-reviewer` and the `r-lib:` names, so an agent is less likely to fall back to inline review when the skill is installed.
 - `audit`: `blindspot`'s cross-model judge gave up after 120 seconds, too short for a reasoning model on a skill that ships a script: both Gemini entries of the menu timed out before answering, so the review lost its external half.
   The OpenRouter call now waits up to 580 seconds, and the judge runs it as a single Bash call with a 600-second timeout, which leaves room for curl's error to be reported where the tool's 120-second default would cut the call first.
 - `audit`: `walkthrough`'s cross-provider validation (L2) never reached another provider.
