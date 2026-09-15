@@ -11,13 +11,15 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 - `audit`: `blindspot`'s curated OpenRouter models, unchanged since the first release, are replaced by current releases checked against the OpenRouter catalog on 2026-09-15: `google/gemini-3.1-pro-preview` (default), `google/gemini-3.8-flash`, `openai/gpt-5.6-sol`, `deepseek/deepseek-v4-pro-0813`, `qwen/qwen3.8-max-0902` and `x-ai/grok-4.6`.
   Meta leaves the menu, since it has shipped nothing since Llama 4; any other model stays reachable through the custom option.
-  `moonshotai/kimi-k3` was considered and left out: OpenRouter spreads it across about twenty providers, and a three-line prompt exceeded the judge's 120-second timeout on both test calls.
+  `moonshotai/kimi-k3` was considered and left out: OpenRouter spreads it across about twenty providers, and a three-line prompt took more than 120 seconds on both test calls.
 - `audit`: the `walkthrough` orchestrator caps the reviewer report at 25 findings instead of 15, so the automatic batch triage (15 findings or more) can fire on a capped report rather than only at exactly 15.
 - `audit`: the Ouroboros bridge's last tested version (`MAX_TESTED`) is 0.54.4 instead of 0.38.2, so an up-to-date install no longer warns on every walkthrough; neither the QA nor the drift threshold is recalibrated against that version.
 - `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
 
 ### Fixed
 
+- `audit`: `blindspot`'s cross-model judge gave up after 120 seconds, too short for a reasoning model on a skill that ships a script: both Gemini entries of the menu timed out before answering, so the review lost its external half.
+  The OpenRouter call now waits up to 580 seconds, and the judge runs it as a single Bash call with a 600-second timeout, which leaves room for curl's error to be reported where the tool's 120-second default would cut the call first.
 - `audit`: `walkthrough`'s cross-provider validation (L2) never reached another provider.
   It went through Ouroboros consensus, and the Ouroboros plugin starts its MCP server with `--llm-backend claude_code`, whose adapter replaces every non-Anthropic OpenRouter voter with the default Claude model: the three votes reported as `gpt-4o`, `claude-opus-5` and `gemini-2.5-pro` were all Claude.
   L2 now calls `audit/walkthrough/scripts/openrouter-verdict.py`, which asks one external model through OpenRouter for a `valid`/`invalid` verdict and reports the model that actually answered: `openai/gpt-5.6-sol` by default, `google/gemini-3.1-pro-preview` when blindspot's first phase already used an OpenAI model.

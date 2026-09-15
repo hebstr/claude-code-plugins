@@ -103,10 +103,10 @@ Substitution model, read carefully before running the bash:
 
 - Set the shell variable `MODEL` to the validated `EXTERNAL_MODEL` value.
 - Set the shell variable `AUDIT_PROMPT` to the prompt text constructed in step 2, using a quoted heredoc so any characters in the prompt (backticks, dollar signs, quotes) are passed verbatim.
-- The bash block below references these variables exclusively; its only placeholder is `<EXTERNAL_MODEL>` in the `MODEL` assignment, and the guard below it stops the run if that placeholder is left in place.
+- The bash block below references these variables exclusively; its placeholders are `<EXTERNAL_MODEL>` in the `MODEL` assignment and the heredoc body, and the guards below them stop the run if either is left in place.
   If you find yourself wanting to edit the code, stop: substitute only the two assignments at the top of the block (`MODEL` and the heredoc body), never the code below them.
 - Run the block as one Bash call with `timeout: 600000`.
-  A reasoning model spends minutes on a skill-sized prompt before its first content byte, and the Bash tool's 120 s default would kill the call before curl's own 600 s limit: on 2026-09-15 `google/gemini-3.1-pro-preview` and `google/gemini-3.8-flash` both failed with curl exit 28 at 120 s on a 42-49K character prompt, and the same Flash call answered in 255 s once the limit was raised.
+  A reasoning model spends minutes on a skill-sized prompt before its first content byte, and the Bash tool's 120 s default would kill the call before curl's own limit, set to 580 s so that curl times out before the 600 s Bash limit and its error still gets reported: on 2026-09-15 `google/gemini-3.1-pro-preview` and `google/gemini-3.8-flash` both failed with curl exit 28 at 120 s on a 42-49K character prompt, and the same Flash call answered in 255 s once the limit was raised.
 
 ```bash
 # Substitute these two assignments:
@@ -140,7 +140,7 @@ printf '%s' "$AUDIT_PROMPT" > "$PROMPT_FILE"
 
 RESPONSE=$(jq -n --arg model "$MODEL" --rawfile content "$PROMPT_FILE" \
   '{model: $model, messages: [{role: "user", content: $content}], temperature: 0.2}' \
-| curl -sS -m 600 https://openrouter.ai/api/v1/chat/completions \
+| curl -sS -m 580 https://openrouter.ai/api/v1/chat/completions \
   -H "Authorization: Bearer $OPENROUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d @- 2>"$ERR_FILE")

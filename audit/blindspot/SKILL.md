@@ -163,7 +163,7 @@ Path overlap is circular if **any** of these conditions is true (OR logic):
 2. Target path contains files imported or referenced by the audit skill.
    Applies only when resolution succeeded.
 
-3. **Distributional path-overlap rule**: sets path overlap = Yes whenever both reviewer and target share Claude as their distributional origin, regardless of directory comparison or whether step 4 of the resolution fired:
+3. **Distributional path-overlap rule**: sets path overlap = Yes whenever both reviewer and target share Claude as their distributional origin, regardless of directory comparison or whether step 5 of the resolution fired:
    - **Target side**: the target is Claude-authored content (a Claude Code skill (`SKILL.md`), an MCP server with tool definitions authored for Claude, a project containing prompt text / agent definitions / `CLAUDE.md` rules optimized for Claude, or other Claude-distribution-shaped artifacts).
    - **Reviewer side**: the audit skill's own instructions were written by/for Claude, i.e. it is a Claude Code skill itself.
      In practice this covers `skill-adversary`, `mcp-adversary`, `sweep`, `critical-code-reviewer`, and any future audit skill installed as `SKILL.md`.
