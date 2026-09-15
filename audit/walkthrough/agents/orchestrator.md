@@ -178,15 +178,30 @@ This procedure is shared: walkthrough-only mode invokes the same steps once it h
 3. The **memory dir** is the first candidate holding at least one file matching `feedback_review_severity*.md`; when none does, it is the first candidate that exists.
    The walkthrough's Step 4b writes new calibration rules to this directory, never to the project store below.
 
-4. Read every file matching `feedback_review_severity*.md` (the suffix varies by scope, e.g. `feedback_review_severity.md`, `feedback_review_severity_personal.md`) in the memory dir, and also in the **project store** `<project root>/.claude/memory/` when it exists and is not the memory dir itself.
+4. Collect the files matching `feedback_review_severity*.md` (the suffix varies by scope, e.g. `feedback_review_severity.md`, `feedback_review_severity_personal.md`) in the memory dir, and also in the **project store** `<project root>/.claude/memory/` when it exists and is not the memory dir itself.
    A project keeps the files Claude reads under `.claude/`, so its rules add to those of the memory dir instead of replacing them.
    These hold reviewer calibration rules from prior sessions (dismissed false positives, R idioms not to flag, etc.).
    If neither directory holds any, the consumer runs without prior calibration context: skip the remaining steps.
 
+   **Scope filter.** A shared store holds calibration for many projects, so read the frontmatter (`name`, `description`) of each file first and read the body only of the files kept.
+   Keep a file when at least one holds:
+
+   - it comes from the project store, which is already scoped to this project;
+   - its description names the target's project, by repository or package name or by a path containing the target;
+   - its description names a kind of artifact present in the target (e.g. bats test files, `SKILL.md`, `.claude/rules/`, French `.qmd` reports, heuristic parsers), where a directory target covers the files it contains;
+   - its description names neither a project nor a kind of artifact, which makes it generic (e.g. calibration for personal packages).
+
+   Skip a file whose description names a different project, even when its artifact kind matches.
+   Match a project name as a whole name, never as a substring: `hebstr` does not select `quarto-hebstr-doc`.
+   When the description leaves relevance uncertain, keep the file: a wrongly skipped rule gets re-litigated, a wrongly kept one only costs context.
+   Record the kept and skipped files for step 6.
+
 5. Scan the `MEMORY.md` of the memory dir and of the project store for other feedback-type memories relevant to the review (e.g., `feedback_code_text_english.md`).
    Read any that seem review-relevant.
 
-6. Collect all loaded memory content into a `[prior calibration]` block, and name the directories it came from in the transparency status.
+6. Collect all loaded memory content into a `[prior calibration]` block, and report the load on one line, naming files by their suffix after `feedback_review_severity_` (`default` for the bare file):
+   `<memory dir>[ + <project store>] (kept K/N: <names>; skipped: <names>)`, or `none (<reason>)`.
+   Skipped files are named rather than counted so that a wrong exclusion is visible.
 
 ## Inject calibration and launch
 
@@ -244,6 +259,7 @@ Once the reviewer's report has arrived, emit the following structured block **ex
 context: <level> (<detection method>)
 reviewer: <reviewer name>
 calibrated: <yes|no>
+prior calibration: <the step 6 line of "Load target project memories">
 batch: <--batch|--no-batch|none>
 --- REVIEW REPORT ---
 <paste the Agent's returned report here, unmodified>

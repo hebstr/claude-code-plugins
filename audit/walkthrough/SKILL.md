@@ -75,7 +75,7 @@ When the orchestrator finishes, it emits a structured block containing:
 - `--- REVIEW REPORT ---` with the reviewer's condensed findings
 - `--- PROCEED TO STEP 1 ---`
 
-Parse the block for: deployment context (level + detection method), reviewer used, calibration status, `--batch`/`--no-batch` override, and the review findings.
+Parse the block for: deployment context (level + detection method), reviewer used, calibration status, prior calibration line, `--batch`/`--no-batch` override, and the review findings.
 
 **CRITICAL: Do not stop here.** The review report is now available.
 Immediately proceed to Step 1: do not summarize the review, do not ask the user what to do next, do not treat the reviewer's output as the end of your task.
@@ -166,8 +166,9 @@ Before processing the first finding, report a brief capabilities status block so
 - **Reviewer and calibration**: in orchestrator mode (Step 0 ran), report the reviewer used and its calibration status, both parsed from the orchestrator block (`reviewer: <name>` and `calibrated: yes|no`).
   E.g., "Reviewer: critical-code-reviewer (calibrated)."
   or "Reviewer: skill-adversary (not calibrated)."
-  In **walkthrough-only mode** there is no reviewer to report; instead perform the once-before-the-loop prior-calibration load (Step 2) ahead of this block and report its outcome: "Prior calibration: loaded from `<project root>` (N rules)."
-  when a root was identified and memories found, or "Prior calibration: none (no identifiable project root)."
+  Follow it with the `prior calibration:` line of the block, verbatim.
+  E.g., "Prior calibration: ~/.claude/memory/ (kept 2/15: personal, heuristic_code; skipped: bats_tests, edscrib, ...)."
+  In **walkthrough-only mode** there is no reviewer to report; instead perform the once-before-the-loop prior-calibration load (Step 2) ahead of this block and report its outcome in the same format, from step 6 of the shared procedure, when a root was identified and memories found, or "Prior calibration: none (no identifiable project root)."
   / "Prior calibration: none (no calibration memories found)."
   otherwise.
 - **Ouroboros**: render the bridge's detection result.
@@ -314,7 +315,7 @@ Proceed to Step 2 with only the manual bucket.
 
 **Load prior calibration once, before the loop.** In orchestrator mode this already happened in Step 0 (the orchestrator produced a `[prior calibration]` block).
 In **walkthrough-only mode** it did not, so do it now, but only when the project root is identifiable: derive it by walking upward from the current working directory exactly as Step 4a does (stop at the first ancestor containing `.git/`, `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`; never traverse above `$HOME`).
-If a root is found, run the **Load target project memories** procedure from `agents/orchestrator.md` against it (including its candidate order, `autoMemoryDirectory` then the harness memory dir with its redirect stub then `~/.claude/memory/`, the project's own `.claude/memory/` read on top of the chosen dir, and the `feedback_review_severity*.md` glob) and keep its `[prior calibration]` block for the per-finding check below.
+If a root is found, run the **Load target project memories** procedure from `agents/orchestrator.md` against it (including its candidate order, `autoMemoryDirectory` then the harness memory dir with its redirect stub then `~/.claude/memory/`, the project's own `.claude/memory/` read on top of the chosen dir, the `feedback_review_severity*.md` glob and its scope filter) and keep its `[prior calibration]` block for the per-finding check below.
 If no root is found, skip the load and proceed without prior calibration.
 This is the shared loader, not an ad hoc memory read: it reuses the orchestrator's procedure verbatim, gated on an identifiable root.
 
@@ -582,8 +583,9 @@ Replace the standard append-count persistence line with: `DEFERRED.md revisited:
 ### 4b. Update memory with review calibration
 
 If any findings were REJECTED, write new calibration rules into the **same memory dir the loader resolved** (the first candidate holding calibration, otherwise the first that exists; see the **Load target project memories** procedure in `agents/orchestrator.md`).
-Look for an existing `feedback_review_severity*.md` file: if one already covers the relevant scope, update it; if several scoped files exist and none fits, create a new scoped file rather than a bare `feedback_review_severity.md` that would shadow them.
+Look for an existing `feedback_review_severity*.md` file among **all** files of that dir, including those the loader's scope filter skipped: if one already covers the relevant scope, update it; if several scoped files exist and none fits, create a new scoped file rather than a bare `feedback_review_severity.md` that would shadow them.
 If none exists at all, create `feedback_review_severity.md`.
+A created file's `description` names the project (repository or package name, or path) or the kind of artifact its rules apply to; otherwise the scope filter reads it as generic and injects it into every project's reviews.
 
 The memory should capture the general calibration pattern (e.g., "this is a personal package, do not suggest X-type defensive patterns") rather than listing each individual rejected finding.
 Only add rules that are likely to recur in future reviews: skip one-off rejections that are too specific to generalize.

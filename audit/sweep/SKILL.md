@@ -63,8 +63,8 @@ Classify:
 
 #### Calibration memory (optional)
 
-Run steps 1 to 4 of the **Load target project memories** procedure in the sibling `walkthrough` skill (`../walkthrough/agents/orchestrator.md` from this skill's base directory), with the working directory as the target.
-It resolves the memory directory from `autoMemoryDirectory`, the harness memory directory of the repository (following a redirect stub), then `~/.claude/memory/`, and reads every `feedback_review_severity*.md` there and in the project's own `.claude/memory/`; they contain calibration rules for known false positive patterns (e.g., R idioms not to flag).
+Run steps 1 to 4 of the **Load target project memories** procedure, plus the status line of its step 6, in the sibling `walkthrough` skill (`../walkthrough/agents/orchestrator.md` from this skill's base directory), with the working directory as the target.
+It resolves the memory directory from `autoMemoryDirectory`, the harness memory directory of the repository (following a redirect stub), then `~/.claude/memory/`, and reads the `feedback_review_severity*.md` there and in the project's own `.claude/memory/` that its scope filter keeps for this project; they contain calibration rules for known false positive patterns (e.g., R idioms not to flag).
 This content will be injected into every agent prompt as "Known false positive patterns, do not flag these".
 
 #### Report to user
@@ -184,7 +184,7 @@ Display the consolidated report using this **exact template**: follow the format
 ## Full Review Report: [project name] ([project type], [LOC] LOC)
 
 **Agents:** Agent A (correctness via critical-code-reviewer) ✓ · Agent B (architecture) ✓ · Agent C (docs/tests) ✓ · Agent D (cran-extrachecks) ✓
-**Calibration:** [loaded N rules / none found]
+**Calibration:** [<memory dir> (kept K/N: <names>; skipped: <names>) / none found]
 **Summary:** X blocking · Y required · Z suggestions (from N agents, M duplicates removed)
 
 ### Blocking
@@ -208,7 +208,7 @@ Run `/walkthrough` to process these findings one by one interactively.
 **Mandatory elements:**
 - The **Agents** line with status markers (✓ completed, ✗ failed, ⏱ timed out)
 - The detected **project type** and **LOC** in the header
-- The **Calibration** line (whether memory was loaded or not)
+- The **Calibration** line: the step 6 line of the shared procedure (kept and skipped files), or `none`
 - **Duplicate count** in the summary line
 - The `---` separator and `/walkthrough` footer
 - If an agent failed or timed out, note the coverage gap at the bottom

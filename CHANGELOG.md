@@ -30,6 +30,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   The shared loader keys the harness directory by repository root with every character other than a letter, digit or `-` encoded, and uses the first of `autoMemoryDirectory`, that directory (redirect stub still followed) and `~/.claude/memory/` that holds `feedback_review_severity*.md`.
   Rules in the project's own `.claude/memory/` are read on top of that directory rather than instead of it.
   `walkthrough` writes new calibration rules to the chosen directory, never to the project store, and `sweep` runs this procedure instead of keeping its own copy.
+- `audit`: the calibration loader injected every `feedback_review_severity*.md` of a shared memory store, including the rules of unrelated projects.
+  It now keeps only the files whose frontmatter `description` names the target's project, a kind of artifact present in the target, or no project at all, plus every file of the project's own `.claude/memory/`, and the status line names the kept and skipped files.
 
 ### Changed
 
