@@ -167,7 +167,8 @@ Before processing the first finding, report a brief capabilities status block so
   E.g., "Reviewer: critical-code-reviewer (calibrated)."
   or "Reviewer: skill-adversary (not calibrated)."
   Follow it with the `prior calibration:` line of the block, verbatim.
-  E.g., "Prior calibration: ~/.claude/memory/ (kept 2/15: personal, heuristic_code; skipped: bats_tests, edscrib, ...)."
+  E.g., "Prior calibration: ~/.claude/memory/ (kept 2/16: personal, heuristic_code; skipped: bats_tests, edscrib, ...)."
+  When the reviewer's category is not `code`, the reviewer received none of those rules, so append "(not injected into the reviewer; used by the Step 2b check)".
   In **walkthrough-only mode** there is no reviewer to report; instead perform the once-before-the-loop prior-calibration load (Step 2) ahead of this block and report its outcome in the same format, from step 6 of the shared procedure, when a root was identified and memories found, or "Prior calibration: none (no identifiable project root)."
   / "Prior calibration: none (no calibration memories found)."
   otherwise.
@@ -314,8 +315,10 @@ Proceed to Step 2 with only the manual bucket.
 ## Step 2: Process each point (manual bucket)
 
 **Load prior calibration once, before the loop.** In orchestrator mode this already happened in Step 0 (the orchestrator produced a `[prior calibration]` block).
-In **walkthrough-only mode** it did not, so do it now, but only when the project root is identifiable: derive it by walking upward from the current working directory exactly as Step 4a does (stop at the first ancestor containing `.git/`, `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`; never traverse above `$HOME`).
-If a root is found, run the **Load target project memories** procedure from `agents/orchestrator.md` against it (including its candidate order, `autoMemoryDirectory` then the harness memory dir with its redirect stub then `~/.claude/memory/`, the project's own `.claude/memory/` read on top of the chosen dir, the `feedback_review_severity*.md` glob and its scope filter) and keep its `[prior calibration]` block for the per-finding check below.
+In **walkthrough-only mode** it did not, so do it now, but only when the project root is identifiable.
+The target is the set of files the findings cite, not the working directory, so that a report about another repository gets that repository's calibration and both modes filter against the same files: resolve the root from the first cited file that exists, as step 1 of the shared procedure resolves it for a target.
+When no cited file exists, derive the root by walking upward from the current working directory exactly as Step 4a does (stop at the first ancestor containing `.git/`, `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`; never traverse above `$HOME`), and use that root as the target.
+If a root is found, run the **Load target project memories** procedure from `agents/orchestrator.md` against it, with that target for its scope filter (including its candidate order, `autoMemoryDirectory` then the harness memory dir with its redirect stub then `~/.claude/memory/`, the project's own `.claude/memory/` read on top of the chosen dir, the `feedback_review_severity*.md` glob and its scope filter) and keep its `[prior calibration]` block for the per-finding check below.
 If no root is found, skip the load and proceed without prior calibration.
 This is the shared loader, not an ad hoc memory read: it reuses the orchestrator's procedure verbatim, gated on an identifiable root.
 

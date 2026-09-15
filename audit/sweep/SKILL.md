@@ -184,7 +184,7 @@ Display the consolidated report using this **exact template**: follow the format
 ## Full Review Report: [project name] ([project type], [LOC] LOC)
 
 **Agents:** Agent A (correctness via critical-code-reviewer) ✓ · Agent B (architecture) ✓ · Agent C (docs/tests) ✓ · Agent D (cran-extrachecks) ✓
-**Calibration:** [<memory dir> (kept K/N: <names>; skipped: <names>) / none found]
+**Calibration:** [<memory dir> (kept K/N: <names>; skipped: <names>) / none (<reason>)]
 **Summary:** X blocking · Y required · Z suggestions (from N agents, M duplicates removed)
 
 ### Blocking
@@ -208,7 +208,7 @@ Run `/walkthrough` to process these findings one by one interactively.
 **Mandatory elements:**
 - The **Agents** line with status markers (✓ completed, ✗ failed, ⏱ timed out)
 - The detected **project type** and **LOC** in the header
-- The **Calibration** line: the step 6 line of the shared procedure (kept and skipped files), or `none`
+- The **Calibration** line: the step 6 line of the shared procedure (kept and skipped files), or `none (<reason>)`
 - **Duplicate count** in the summary line
 - The `---` separator and `/walkthrough` footer
 - If an agent failed or timed out, note the coverage gap at the bottom

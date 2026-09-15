@@ -162,7 +162,7 @@ You must load them explicitly.
 This procedure is shared: walkthrough-only mode invokes the same steps once it has resolved a project root (see the walkthrough skill's Step 2).
 
 1. Resolve the target's **project root**.
-   Claude Code keys auto memory by repository, so every worktree and subdirectory of one repository shares a single memory directory: run `git -C <target> rev-parse --path-format=absolute --git-common-dir` and take the parent directory of its output.
+   Claude Code keys auto memory by repository, so every worktree and subdirectory of one repository shares a single memory directory: run `git -C <dir> rev-parse --path-format=absolute --git-common-dir`, where `<dir>` is the target when it is a directory and its parent directory otherwise (`git -C` refuses a file), and take the parent directory of its output.
    Outside a git repository, walk upward from the target to the first ancestor containing `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`, never above `$HOME`; failing that, use the target directory itself.
 
 2. List the **candidate memory dirs** in this order:

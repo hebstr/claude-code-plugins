@@ -32,6 +32,9 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   `walkthrough` writes new calibration rules to the chosen directory, never to the project store, and `sweep` runs this procedure instead of keeping its own copy.
 - `audit`: the calibration loader injected every `feedback_review_severity*.md` of a shared memory store, including the rules of unrelated projects.
   It now keeps only the files whose frontmatter `description` names the target's project, a kind of artifact present in the target, or no project at all, plus every file of the project's own `.claude/memory/`, and the status line names the kept and skipped files.
+  In walkthrough-only mode the filter takes the files the findings cite as its target, falling back to the working directory's root only when none exists, so a report about another repository is calibrated for that repository and both modes keep the same files.
+  The status line says when the kept rules were not injected into a non-`code` reviewer, and `sweep` writes the no-calibration case as `none (<reason>)` like the shared procedure.
+  The project root of a single-file target is resolved from its parent directory, since `git -C` refuses a file and the root fell back to the file's own directory.
 
 ### Changed
 
