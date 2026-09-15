@@ -185,7 +185,7 @@ Surface this as `info`: `L1 failed (<mode>) — escalated to L2`.
 - L2 unavailable (key not set) → mark the finding `unverified` and emit a per-finding `warn` anomaly: `Cross-model verification incomplete: L1 <mode>, L2 unavailable. Only main-model opinion available.` Surface this verbatim alongside the verdict.
 Do not silently accept the finding under the general "report and skip" error policy.
 
-**Level 2: Cross-provider.** Triggers when: (a) finding is Blocking/Required/Critical, the top tiers of the reviewer vocabularies (Blocking and Required for critical-code-reviewer, Critical for skill-adversary and the blindspot judge), matched case-insensitively, (b) L1 divergence on any severity, (c) the finding carries a `claude-only` blindspot tag (mandatory regardless of severity, see "Blindspot input routing" below), or (d) L1 failed on an Important+ finding (see L1 failure handling above).
+**Level 2: Cross-provider.** Triggers when: (a) finding is Blocking/Required/Critical, the top tiers of the reviewer vocabularies (Blocking and Required for posit-dev:critical-code-reviewer, Critical for audit:skill-adversary and the blindspot judge), matched case-insensitively, (b) L1 divergence on any severity, (c) the finding carries a `claude-only` blindspot tag (mandatory regardless of severity, see "Blindspot input routing" below), or (d) L1 failed on an Important+ finding (see L1 failure handling above).
 Trigger (a) does not apply to a finding tagged `agreed`.
 Requires `OPENROUTER_API_KEY`, and nothing from Ouroboros: run it even when detection reported `available: false`.
 
@@ -204,6 +204,10 @@ Inside the single quotes, write each `'` of a substituted value as `'\''`.
 The three checked placeholders fail loudly rather than silently when left in place, exiting 2: the block rejects a claim or code path that is not an existing file, and the script rejects a model ID that does not match `provider/model` and an empty claim or code file.
 The `<FILE PATH>` label is not checked, since it only annotates the prompt.
 
+Run the block as one Bash call with `timeout: 600000`, and pass `--timeout 580` as below.
+A reasoning model spends minutes on a finding-sized prompt before its first content byte, and the Bash tool's 120 s default coincides exactly with the script's own `--timeout` default of 120 s: the tool kills the call at the instant the script would have reported the timeout, so the exit-1 row of "Error handling" below is unreachable and the failure surfaces with no reason attached.
+Keeping the script limit under the Bash limit is what makes the script's `timed out after 580s` JSON the thing you branch on (`audit/blindspot/agents/cross-model-judge.md` sets the same pair for the same reason).
+
 ```bash
 SCRIPT="${CLAUDE_SKILL_DIR}/scripts/openrouter-verdict.py"
 CLAIM_FILE='<CLAIM FILE>'
@@ -212,7 +216,7 @@ if [ ! -f "$CLAIM_FILE" ] || [ ! -f "$CODE_FILE" ]; then
   echo "claim or code file not found" >&2
   exit 2
 fi
-python3 "$SCRIPT" --model '<MODEL>' --claim-file "$CLAIM_FILE" --code-file "$CODE_FILE" --path '<FILE PATH>'
+python3 "$SCRIPT" --model '<MODEL>' --claim-file "$CLAIM_FILE" --code-file "$CODE_FILE" --path '<FILE PATH>' --timeout 580
 rc=$?
 rm -f "$CLAIM_FILE" "$CODE_FILE"
 exit "$rc"

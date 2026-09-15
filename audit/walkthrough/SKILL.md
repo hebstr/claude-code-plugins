@@ -3,7 +3,7 @@ name: walkthrough
 description: >
   User-invocable ONLY via `/audit:walkthrough`.
   Does not auto-trigger on mentions of "review", "review findings", "review report", "walk through", "walkthrough", "go through one by one", "triage", "DEFERRED.md", "revisit deferred", or French equivalents ("revue", "passer en revue", "trier", "reprendre les findings", "revoir les éléments différés").
-  Interactive, point-by-point walkthrough of a review report produced by any Claude Code review skill (skill-adversary, critical-code-reviewer, or any other).
+  Interactive, point-by-point walkthrough of a review report produced by any Claude Code review skill (audit:skill-adversary, posit-dev:critical-code-reviewer, or any other).
   Three modes: **orchestrator mode** (provide a target + optional `--reviewer` flag: detects deployment context, calibrates severity, launches the reviewer, then walks through its report), **walkthrough-only mode** (processes an existing report from the conversation), and **revisit-deferred mode** (processes the project's `DEFERRED.md` backlog as the input source).
   Parses review findings and processes each one at a time: re-evaluates validity, proposes and applies fixes, checks impacted files for regressions, and waits for user approval before moving on.
   Adversarial cross-provider validation (L2) is always active on Blocking/Required/Critical findings when `OPENROUTER_API_KEY` is set.
@@ -164,8 +164,8 @@ Before processing the first finding, report a brief capabilities status block so
   or "Context: production (CI config found)."
   If the context was asked to the user, say "Context: [level] (user-provided)."
 - **Reviewer and calibration**: in orchestrator mode (Step 0 ran), report the reviewer used and its calibration status, both parsed from the orchestrator block (`reviewer: <name>` and `calibrated: yes|no`).
-  E.g., "Reviewer: critical-code-reviewer (calibrated)."
-  or "Reviewer: skill-adversary (not calibrated)."
+  E.g., "Reviewer: posit-dev:critical-code-reviewer (calibrated)."
+  or "Reviewer: audit:skill-adversary (not calibrated)."
   Follow it with the `prior calibration:` line of the block, verbatim.
   E.g., "Prior calibration: ~/.claude/memory/ (kept 2/16: personal, heuristic_code; skipped: bats_tests, edscrib, ...)."
   When the reviewer's category is not `code`, the reviewer received none of those rules, so append "(not injected into the reviewer; used by the Step 2b check)".
@@ -219,7 +219,7 @@ Keep the status block itself to 2-4 short lines: the bullets above define **what
 The example below demonstrates the target density.
 Example:
 > Context: personal (detected from path ~/scripts/).
-Reviewer: critical-code-reviewer (calibrated).
+Reviewer: posit-dev:critical-code-reviewer (calibrated).
 Ouroboros 0.54.4 ✓ (L2 enabled).
 Author's defense active on 4/6 findings.
 Severity reordering applied: 2 Blocking first.
@@ -645,7 +645,7 @@ If Ouroboros is not available, skip its sections silently; the cross-model valid
 - **Step 1 (detection):** call the bridge to probe availability.
 Use the result for the transparency status.
 - **Step 2b (QA):** when your re-evaluation is genuinely uncertain, run the bridge's QA for a second opinion.
-- **Step 2b (cross-model L1/L2):** on Important+ findings, run the bridge's cross-model validation.
+- **Step 2b (cross-model L1/L2):** on Important+ findings, and on any finding tagged `claude-only` regardless of severity, run the bridge's cross-model validation.
 It handles Agent spawning (L1) and the OpenRouter verdict script (L2).
 - **Step 2b-2c (lateral think):** when stuck (2+ exchanges or regression revert), run the bridge's lateral think.
 - **Step 3 (evaluate):** when >= 2 fixes applied, run the bridge's evaluate for final validation.

@@ -1,5 +1,5 @@
 [
-  {"query": "/blindspot ~/.claude/skills/skill-adversary/ --reviewer skill-adversary", "should_trigger": true},
+  {"query": "/audit:blindspot ~/.claude/skills/skill-adversary/ --reviewer audit:skill-adversary", "should_trigger": true},
   {"query": "I want to review my skill with skill-adversary but it's a skill I wrote with Claude — is there a bias issue?", "should_trigger": false},
   {"query": "lance blindspot sur mcp-adversary qui review le MCP ouroboros", "should_trigger": false},
   {"query": "can Claude objectively review this skill or is there a conflict of interest?", "should_trigger": false},
@@ -9,7 +9,7 @@
   {"query": "j'ai fait un sweep de sweep et le résultat est trop gentil, vérifie avec blindspot", "should_trigger": false},
   {"query": "is there a way to get a non-Claude model to cross-check this audit? I don't trust the results", "should_trigger": false},
   {"query": "the critical-code-reviewer just gave my skill a glowing review but it's a Claude skill reviewing Claude code — seems off", "should_trigger": false},
-  {"query": "/skill-adversary ~/.claude/skills/litrev/", "should_trigger": false},
+  {"query": "/audit:skill-adversary ~/.claude/skills/litrev/", "should_trigger": false},
   {"query": "review this PR for me", "should_trigger": false},
   {"query": "what is self-preference bias in LLM evaluation?", "should_trigger": false},
   {"query": "run a full review on my Python project in ~/projects/webapp/", "should_trigger": false},

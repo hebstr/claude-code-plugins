@@ -86,7 +86,7 @@ If so, suggest chaining via `/audit:blindspot` instead of running the reviewer d
 **Suggest blindspot for high-signal circularity (artifact-driven, reviewer-agnostic):**
 
 The trigger is the **nature of the artifact**, not the chosen reviewer.
-A `SKILL.md` reviewed by `critical-code-reviewer` is just as circular as one reviewed by `skill-adversary`: Claude's distributional priors apply regardless of which reviewer formats the critique.
+A `SKILL.md` reviewed by `posit-dev:critical-code-reviewer` is just as circular as one reviewed by `audit:skill-adversary`: Claude's distributional priors apply regardless of which reviewer formats the critique.
 
 Match any of:
 

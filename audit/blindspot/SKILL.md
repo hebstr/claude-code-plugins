@@ -1,7 +1,7 @@
 ---
 name: blindspot
 disable-model-invocation: true
-allowed-tools: Read Glob Grep Bash Agent Skill
+allowed-tools: Read Glob Grep Bash Agent AskUserQuestion
 description: >
   User-invocable ONLY via `/audit:blindspot`.
   Does not auto-trigger on mentions of "circular review", "review circulaire", "self-review check", "second opinion", "external judge", or any phrasing requesting circularity countermeasures.
@@ -61,7 +61,7 @@ Before proceeding, validate `<target-path>`:
 4. Reject self-invocation: would create infinite recursion.
    Resolve `--reviewer` to a concrete `SKILL.md` path using the same runtime resolution procedure as Phase 0 Path overlap (scan match → env shortcut → installed_plugins.json → `~/.claude/skills/`).
    If the resolved path's directory matches blindspot's own directory (compare via `realpath` on both sides), reject the invocation regardless of how the user spelled the argument (literal `blindspot`, absolute path, relative path, or symlink).
-   Report the error and suggest using a different audit skill (e.g., `--reviewer skill-adversary`).
+   Report the error and suggest using a different audit skill (e.g., `--reviewer audit:skill-adversary`).
    Also reject if `--reviewer` resolves to a wrapper skill that, by its own SKILL.md content, would re-invoke blindspot internally (best-effort check: grep the resolved SKILL.md for `/blindspot` or `audit:blindspot` invocations; if found, refuse and require the user to pass the wrapper's underlying audit skill directly).
 
 ## Reviewer selection
@@ -206,7 +206,7 @@ If circularity detected: report the verdict and proceed to Phase 1.
 **Target:** <target-path>
 **Path overlap:** Yes/No, <explanation>
 **Model family overlap:** Yes/No, <explanation>
-**Verdict:** <Strong circularity / Model circularity>
+**Verdict:** <Strong circularity / Model circularity / Structural circularity>
 
 Proceeding with countermeasures.
 ```
@@ -334,7 +334,7 @@ Present the report using this template:
 ### Circularity Assessment
 
 **Audit skill:** <skill-name>
-**Verdict:** <Strong circularity / Model circularity>
+**Verdict:** <Strong circularity / Model circularity / Structural circularity>
 **Countermeasures applied:** Cross-model judge via OpenRouter (<model-id>)
 
 ### Cross-Model Findings (<model-id>)
@@ -407,7 +407,7 @@ Once the audit skill Agent launched in the Phase 1 fallback has delivered its re
 ### Circularity Assessment
 
 **Audit skill:** <skill-name>
-**Verdict:** <Strong circularity / Model circularity>
+**Verdict:** <Strong circularity / Model circularity / Structural circularity>
 **Countermeasures applied:** None (OPENROUTER_API_KEY not set)
 
 ### Audit Findings
