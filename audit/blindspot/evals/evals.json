@@ -3,13 +3,13 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "/audit:blindspot ~/.claude/skills/skill-adversary/ --reviewer audit:skill-adversary",
-      "expected_output": "Detect strong circularity (path overlap + model family overlap). Attempt OpenRouter cross-model judge if OPENROUTER_API_KEY is set, fallback with warning if not. Report includes circularity assessment and transparency block.",
+      "prompt": "/audit:blindspot audit/skill-adversary --reviewer audit:skill-adversary",
+      "expected_output": "Detect model circularity (Claude-authored target, no filesystem overlap with the installed reviewer). Attempt OpenRouter cross-model judge if OPENROUTER_API_KEY is set, fallback with warning if not. Report includes circularity assessment and transparency block.",
       "files": [],
       "expectations": [
-        "The output includes a Circularity Detection section with verdict 'Strong circularity'",
+        "The output includes a Circularity Detection section with verdict 'Model circularity'",
         "The output includes a Transparency section",
-        "Path overlap is detected and reported as Yes",
+        "Path overlap is reported as No",
         "Model family overlap is detected and reported as Yes"
       ]
     },

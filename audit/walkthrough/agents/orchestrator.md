@@ -48,8 +48,8 @@ If invalid, list the scanned candidates back to the user and ask them to pick on
 
   | Signal on resolved target                                                                                                                                                           | Suggested category         |
   | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-  | Target is or contains a `SKILL.md`, or path is under `~/.claude/skills/` or `<plugin>/skills/`                                                                                      | `skill-tool` (skill audit) |
   | Target contains MCP tool definitions (e.g. `@mcp.tool` / `Server.tool` decorators, `mcp.json`, `mcp_server.py`, `*-mcp/` directory)                                                 | `skill-tool` (MCP audit)   |
+  | Target is a `SKILL.md`, holds one at its top level or skill directories (`*/SKILL.md`) one level down, or path is under `~/.claude/skills/` or `<plugin>/skills/`                   | `skill-tool` (skill audit) |
   | Target is a project root (directory containing a top-level `README` plus a manifest like `pyproject.toml`, `package.json`, `Cargo.toml`, `DESCRIPTION`, etc.) and not a single file | `code` (project-wide)      |
   | Otherwise (single file, sub-tree of code, glob expansion)                                                                                                                           | `code` (focused)           |
 
@@ -64,6 +64,7 @@ If multiple candidates tie within the preferred sub-rule, pick the one with the 
 If the matched category has zero candidates in the scan, fall back to the other category's best match and surface this in the rationale.
 
 **Step 4: present the suggestion and wait.** Show the user the scanned list (grouped by category), the suggested reviewer, and a one-line rationale tying the suggestion to the detected target type.
+Present it as plain text, not through `AskUserQuestion`, whose option cap would hide candidates.
 The format below is illustrative.
 The actual reviewer names come from the scan output, not from this template:
 
@@ -72,7 +73,7 @@ No --reviewer specified. Scanned reviewers:
   [code]       <names from scan>
   [skill-tool] <names from scan>
 Suggested: <chosen name> (<one-line rationale>).
-Pick a reviewer or press Enter to accept the suggestion.
+Pick a reviewer or reply `ok` to accept the suggestion.
 ```
 
 On the user's response: empty input or explicit confirmation → use the suggested reviewer; a candidate name from the scanned list (full or bare suffix) → use that one; anything else → re-prompt with the same options.

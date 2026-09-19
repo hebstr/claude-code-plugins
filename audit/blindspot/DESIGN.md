@@ -74,22 +74,22 @@ Ne remplace aucun skill d'audit, s'interpose quand le risque circulaire est dét
 #### Flow
 
 1. **Phase 0, détection de circularité** : compare le chemin de la cible avec le répertoire du skill d'audit (path overlap) et vérifie si le modèle juge et le modèle auteur partagent la même famille (model family overlap).
-   Produit un verdict : Strong circularity, Model circularity, ou No circularity.
+   Produit un verdict : Strong circularity, Model circularity, Structural circularity, ou No circularity.
 2. **Phase 1, routage cross-model** : si circularité détectée et `OPENROUTER_API_KEY` disponible, lance un agent cross-model-judge qui route l'audit vers un modèle non-Claude (défaut : `google/gemini-3.1-pro-preview`, liste curatée revue le 2026-09-15) via OpenRouter API.
    Sinon, fallback avec warning.
 3. **Phase 2, rapport transparent** : compile les findings des deux modèles avec une analyse de convergence (agreed / Claude-only / external-only) et un bloc de transparence obligatoire.
 
 #### Décisions d'implémentation
 
-  | Décision                                                                       | Justification                                                                                                                         |
-  | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-  | OpenRouter only (pas de cascade CLI)                                           | Une seule clé API, un seul chemin de code, choix du modèle, stabilité vs CLI tools jeunes                                             |
-  | 1 seul agent dédié (cross-model-judge), plus le skill d'audit lancé en `Agent` | Le rapport est compilé par SKILL.md directement, pas besoin d'agent de compilation                                                    |
-  | Pas de devil's advocate (V2)                                                   | Scope minimal V1                                                                                                                      |
-  | Pas de rubric forcing (V2)                                                     | Scope minimal V1                                                                                                                      |
-  | Model family overlap dépend du target, pas du reviewer                         | Le reviewer est toujours Claude en Claude Code, mais le target peut être human-written ; les 4 lignes de la matrice sont atteignables |
-  | Fallback = audit normal + warning détaillé                                     | Le skill reste utile même sans clé OpenRouter                                                                                         |
-  | Convergence analysis comme signal principal                                    | Les findings "external-only" sont les blindspot candidates                                                                            |
+  | Décision                                                                       | Justification                                                                                                                                                                |
+  | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | OpenRouter only (pas de cascade CLI)                                           | Une seule clé API, un seul chemin de code, choix du modèle, stabilité vs CLI tools jeunes                                                                                    |
+  | 1 seul agent dédié (cross-model-judge), plus le skill d'audit lancé en `Agent` | Le rapport est compilé par SKILL.md directement, pas besoin d'agent de compilation                                                                                           |
+  | Pas de devil's advocate (V2)                                                   | Scope minimal V1                                                                                                                                                             |
+  | Pas de rubric forcing (V2)                                                     | Scope minimal V1                                                                                                                                                             |
+  | Model family overlap dépend du target, pas du reviewer                         | Le reviewer est toujours Claude en Claude Code, mais le target peut être human-written et déclaré comme tel par l'utilisateur ; les 4 lignes de la matrice sont atteignables |
+  | Fallback = audit normal + warning détaillé                                     | Le skill reste utile même sans clé OpenRouter                                                                                                                                |
+  | Convergence analysis comme signal principal                                    | Les findings "external-only" sont les blindspot candidates                                                                                                                   |
 
 #### Structure
 

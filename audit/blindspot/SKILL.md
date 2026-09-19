@@ -6,7 +6,7 @@ description: >
   User-invocable ONLY via `/audit:blindspot`.
   Does not auto-trigger on mentions of "circular review", "review circulaire", "self-review check", "second opinion", "external judge", or any phrasing requesting circularity countermeasures.
   Runtime enforcement via `disable-model-invocation: true`: the Skill tool cannot launch this skill; user invocation is mandatory.
-  Reviewer orchestrator: detects when an audit skill (skill-adversary, mcp-adversary, sweep, critical-code-reviewer) is about to review an artifact that shares its codebase, prompts, or model family, then runs cross-model judging via OpenRouter, followed by convergence analysis over the resulting verdicts.
+  Use when an audit skill (skill-adversary, mcp-adversary, sweep, critical-code-reviewer) is about to review an artifact that shares its codebase, prompts, or model family.
   Not for: general code review, PR review, plain skill-adversary/mcp-adversary/sweep invocations without circularity concern, or LLM evaluation methodology discussions.
 ---
 
@@ -39,7 +39,7 @@ If `--reviewer` is omitted, run the reviewer-selection procedure described in "R
 
 ### Input validation
 
-Before proceeding, validate `<target-path>`:
+Before proceeding, validate `<target-path>` and the reviewer:
 
 1. Resolve it to an absolute path
 
@@ -59,6 +59,7 @@ Before proceeding, validate `<target-path>`:
    Substitute `<target-path>` with the resolved absolute path the user passed.
 
 4. Reject self-invocation: would create infinite recursion.
+   When `--reviewer` is omitted, run this check on the reviewer locked in by "Reviewer selection" Step 4, before Phase 0.
    Resolve `--reviewer` to a concrete `SKILL.md` path using the same runtime resolution procedure as Phase 0 Path overlap (scan match → env shortcut → installed_plugins.json → `~/.claude/skills/`).
    If the resolved path's directory matches blindspot's own directory (compare via `realpath` on both sides), reject the invocation regardless of how the user spelled the argument (literal `blindspot`, absolute path, relative path, or symlink).
    Report the error and suggest using a different audit skill (e.g., `--reviewer audit:skill-adversary`).
@@ -70,7 +71,8 @@ When `--reviewer` is omitted, the reviewer is discovered at runtime, suggested b
 Never silently default.
 
 This procedure mirrors `/audit:walkthrough`'s orchestrator (see `audit/walkthrough/agents/orchestrator.md` §"Reviewer selection") and reuses its scanning script directly.
-Any divergence in Steps 1 and 2 (scanning, validation) should be treated as a bug; the Step 3 target-type table is intentionally extended in blindspot to cover Claude-interpreted artifacts (CLAUDE.md, agent definitions, paths under `~/.claude/`) that walkthrough does not gate on.
+Steps 1 and 2 (scanning, validation) carry two intentional divergences, the script path, which blindspot resolves in a sibling skill, and the `Do not auto-correct` rule of Step 2; any other should be treated as a bug.
+The Step 3 target-type table is intentionally extended in blindspot to cover Claude-interpreted artifacts (CLAUDE.md, agent definitions, paths under `~/.claude/`) that walkthrough does not gate on.
 
 **Step 1, scan available reviewers.** Run the helper script from the sibling walkthrough skill:
 
@@ -78,12 +80,13 @@ Any divergence in Steps 1 and 2 (scanning, validation) should be treated as a bu
 python3 "${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/scripts/scan-reviewers.py"
 ```
 
-If `$CLAUDE_PLUGIN_ROOT` is unset (dev mode, non-plugin install), resolve the script path via the same fallback procedure as Phase 0 "Resolution procedure": read `~/.claude/plugins/installed_plugins.json` for the audit plugin install path and append `audit/walkthrough/scripts/scan-reviewers.py`.
+If `$CLAUDE_PLUGIN_ROOT` is unset (dev mode, non-plugin install), take the path announced at the top of the skill prompt (`Base directory for this skill: <path>`) and append `../walkthrough/scripts/scan-reviewers.py`, which keeps a dev checkout on its own copy of the script rather than the installed one.
+Failing that, resolve it via the same fallback procedure as Phase 0 "Resolution procedure": read `~/.claude/plugins/installed_plugins.json` for the audit plugin install path and append `audit/walkthrough/scripts/scan-reviewers.py`.
 If neither resolution succeeds, report the failure to the user and ask them to pass `--reviewer <name>` manually.
 Do not invent reviewer names.
 
 The script returns JSON with `candidates`: each candidate has `name`, `category` (`code` / `skill-tool` / `unknown`), `path`, and `description_excerpt`.
-Plugin skills are named `plugin:skill`, user and project skills keep their bare name, and self-references (`audit:walkthrough`, `audit:blindspot`) are excluded.
+Plugin skills are named `plugin:skill`, user and project skills keep their bare name, a personal skill shadows a project skill of the same name, and self-references (`audit:walkthrough`, `audit:blindspot`) are excluded.
 If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path).
 
 **Step 2, validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`).
@@ -96,10 +99,10 @@ Do not auto-correct.
   | Signal on resolved target                                                                                                                                                           | Suggested category                             |
   | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
   | Filename is `CLAUDE.md` or matches `*.claude.md`                                                                                                                                    | `skill-tool` (Claude-interpreted instructions) |
-  | Target is or contains a `SKILL.md`, or path is under `~/.claude/skills/` or `<plugin>/skills/`                                                                                      | `skill-tool` (skill audit)                     |
+  | Target is a `SKILL.md`, holds one at its top level or skill directories (`*/SKILL.md`) one level down, or path is under `~/.claude/skills/` or `<plugin>/skills/`                   | `skill-tool` (skill audit)                     |
   | Target is an `*.md` file under any `agents/` directory at any depth                                                                                                                 | `skill-tool` (agent definition)                |
-  | Target's resolved absolute path is inside `~/.claude/` or any plugin install directory (cache or marketplace)                                                                       | `skill-tool` (Claude-interpreted artifact)     |
   | Target contains MCP tool definitions (e.g. `@mcp.tool` / `Server.tool` decorators, `mcp.json`, `mcp_server.py`, `*-mcp/` directory)                                                 | `skill-tool` (MCP audit)                       |
+  | Target's resolved absolute path is inside `~/.claude/` or any plugin install directory (cache or marketplace)                                                                       | `skill-tool` (Claude-interpreted artifact)     |
   | Target is a project root (directory containing a top-level `README` plus a manifest like `pyproject.toml`, `package.json`, `Cargo.toml`, `DESCRIPTION`, etc.) and not a single file | `code` (project-wide)                          |
   | Otherwise (single file, sub-tree of code, glob expansion)                                                                                                                           | `code` (focused)                               |
 
@@ -114,6 +117,7 @@ If multiple candidates tie within the preferred sub-rule, pick the one with the 
 If the matched category has zero candidates in the scan, fall back to the other category's best match and surface this in the rationale.
 
 **Step 4, present the suggestion and wait.** Show the user the scanned list (grouped by category), the suggested reviewer, and a one-line rationale tying the suggestion to the detected target type.
+Present it as plain text, not through `AskUserQuestion`, whose option cap would hide candidates.
 The format below is illustrative: the actual reviewer names come from the scan output, not from this template:
 
 ```
@@ -121,7 +125,7 @@ No --reviewer specified. Scanned reviewers:
   [code]       <names from scan>
   [skill-tool] <names from scan>
 Suggested: <chosen name> (<one-line rationale>).
-Pick a reviewer or press Enter to accept the suggestion.
+Pick a reviewer or reply `ok` to accept the suggestion.
 ```
 
 On the user's response: empty input or explicit confirmation → use the suggested reviewer; a candidate name from the scanned list (full or bare suffix) → use that one; anything else → re-prompt with the same options.
@@ -148,14 +152,15 @@ In steps 2 to 4, `<reviewer>` stands for the skill name after any `plugin:` pref
    If several candidates share the bare suffix, fall through to step 2 rather than guessing.
 2. **`${CLAUDE_PLUGIN_ROOT}` shortcut.** If `$CLAUDE_PLUGIN_ROOT` is non-empty AND `$CLAUDE_PLUGIN_ROOT/audit/<reviewer>/SKILL.md` exists, use that path.
    This is the fast path for the standard plugin install.
-3. **Plugin manifest scan.** Read `~/.claude/plugins/installed_plugins.json`, walk each install path, look for `<install_path>/audit/<reviewer>/SKILL.md`.
+3. **Plugin manifest scan.** Read `~/.claude/plugins/installed_plugins.json`, walk each install path, look for a `<reviewer>/SKILL.md` at any depth under it, since only this plugin groups its skills under an `audit/` segment.
    If found, use that path.
 4. **Global skill scan.** Look for `~/.claude/skills/<reviewer>/SKILL.md`.
    If found, use that path.
 5. **No path resolvable.** The reviewer's install location cannot be determined.
-   Skip the directory-comparison conditions (1) and (2) of the overlap check below, fall back to condition (3) only (the distributional rule: any Claude-authored reviewer/target pair sets path overlap = Yes), and append an `info` line in the report: `Reviewer <name> path not resolved, directory overlap check skipped.`
+   Skip both conditions of the overlap check below, report path overlap as `No (reviewer path not resolved)`, and append an `info` line in the report: `Reviewer <name> path not resolved, directory overlap check skipped.`
+   The distributional signal does not depend on this check: Model family overlap carries it.
 
-Path overlap is circular if **any** of these conditions is true (OR logic):
+Path overlap is circular if **either** of these conditions is true (OR logic):
 
 1. Target path is inside the resolved audit skill directory (direct self-review).
    Applies only when resolution succeeded.
@@ -163,11 +168,8 @@ Path overlap is circular if **any** of these conditions is true (OR logic):
 2. Target path contains files imported or referenced by the audit skill.
    Applies only when resolution succeeded.
 
-3. **Distributional path-overlap rule**: sets path overlap = Yes whenever both reviewer and target share Claude as their distributional origin, regardless of directory comparison or whether step 5 of the resolution fired:
-   - **Target side**: the target is Claude-authored content (a Claude Code skill (`SKILL.md`), an MCP server with tool definitions authored for Claude, a project containing prompt text / agent definitions / `CLAUDE.md` rules optimized for Claude, or other Claude-distribution-shaped artifacts).
-   - **Reviewer side**: the audit skill's own instructions were written by/for Claude, i.e. it is a Claude Code skill itself.
-     In practice this covers `skill-adversary`, `mcp-adversary`, `sweep`, `critical-code-reviewer`, and any future audit skill installed as `SKILL.md`.
-   - When both sides hold, the audit shares distributional assumptions with its target even without filesystem overlap; the rule was originally written for skill-adversary but applies identically to every Claude-authored reviewer/target pair.
+Path overlap measures filesystem overlap only.
+A Claude-authored target reviewed by a Claude Code skill shares distributional assumptions with it even without that overlap, which is what Model family overlap below records.
 
 ### Model family overlap
 
@@ -178,6 +180,7 @@ In Claude Code the reviewer is always Claude, so this reduces to "target was gen
 
 Both conditions are False only when the target is human-written code or code generated by a non-Claude model with no Claude-targeted prompt content.
 In that case, model-family overlap = No.
+When the target has no Claude-targeted content and its provenance cannot be established from it, report `Yes (provenance unknown)`: No requires the user to state that the target is human-written or non-Claude-generated, since a guessed No skips the cross-model judge the invocation asked for.
 
 ### Circularity verdict
 
@@ -192,8 +195,8 @@ If **no circularity** (rare: typically human-written codebase being audited by C
 user that blindspot's countermeasures are not load-bearing here, but proceed anyway, since the user
 explicitly invoked `/audit:blindspot`, so honor that.
 Skip the cross-model judge to avoid wasting an
-OpenRouter call, run the original audit skill directly as an Agent (wait for its completion notification as described under "Waiting for the Agents"), and append a short note in the report
-explaining why the cross-model layer was skipped.
+OpenRouter call, run the original audit skill directly as an Agent (wait for its completion notification as described under "Waiting for the Agents"), and report with the fallback-mode template of Phase 2, with four substitutions: `**Verdict:** No circularity`, `**Countermeasures applied:** Skipped (no circularity detected)`, the Circularity Warning block replaced by one line stating why the cross-model layer was skipped, and the Transparency `Residual bias risk` line reading `Low, reviewer and target share no model family` instead of the `HIGH` wording.
+The template's other warnings describe a circular review that did not happen, and its `OPENROUTER_API_KEY not set` wording would be false here.
 
 If circularity detected: report the verdict and proceed to Phase 1.
 
@@ -206,10 +209,12 @@ If circularity detected: report the verdict and proceed to Phase 1.
 **Target:** <target-path>
 **Path overlap:** Yes/No, <explanation>
 **Model family overlap:** Yes/No, <explanation>
-**Verdict:** <Strong circularity / Model circularity / Structural circularity>
+**Verdict:** <Strong circularity / Model circularity / Structural circularity / No circularity>
 
 Proceeding with countermeasures.
 ```
+
+On the `No circularity` verdict, replace the last line with `No countermeasures needed; running the audit skill directly.`
 
 ## Phase 1: Cross-Model Routing
 
@@ -226,7 +231,8 @@ test -n "$OPENROUTER_API_KEY" && echo "openrouter:available" || echo "openrouter
 
 Before spawning the cross-model judge, present the model menu to the user and wait for their choice.
 The curated entries were checked against the OpenRouter catalog on 2026-09-15; an entry that OpenRouter rejects as unknown has been retired and the list is due for review.
-Display verbatim in the user's language:
+Display as plain text, not through `AskUserQuestion`, whose option cap would hide entries.
+Translate the prose into the user's language, keeping the model IDs, the option numbers and the entry order as written:
 
 ```
 External model for cross-model judge. Claude wrote the target, so the goal is a second opinion from a non-Claude family.
@@ -241,25 +247,28 @@ External model for cross-model judge. Claude wrote the target, so the goal is a 
 
 Quick rule: for a one-shot audit, pick 1. For a second pass after Gemini, pick 3 or 4 (different family). For speed on a large artifact, pick 2.
 
-Your choice [1-7, Enter for default]:
+Your choice [1-7, or `default` for 1]:
 ```
 
 **On user response:**
 
 - **`1`-`6`** → map to the corresponding curated entry (see `agents/cross-model-judge.md` for the canonical mapping).
   Use that model ID as `EXTERNAL_MODEL`.
-- **Empty / `Enter` / `default` / "1"** → use `google/gemini-3.1-pro-preview`.
+- **Empty / `default` / "1"** → use `google/gemini-3.1-pro-preview`.
 - **Full model ID matching one of the curated entries** (e.g., `openai/gpt-5.6-sol`) → accept and use it.
 - **`7` / `custom`** → trigger the custom flow described below.
-- **Anything else / ambiguous** → re-present the menu once with a one-line clarification ("Pick a number 1-7 or press Enter for default."), then default to `1` on a second ambiguous response.
+- **Anything else / ambiguous** → re-present the menu once with a one-line clarification ("Pick a number 1-7, or reply `default` for 1."), then default to `1` on a second ambiguous response.
 
 **Custom model flow (option 7):**
 
 1. Prompt: `OpenRouter model ID (e.g., provider/model-name):` and wait for input.
 
-2. Validate the input format with regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$` (letters, digits, dashes/dots/underscores; case-insensitive; exactly one slash; no spaces).
+2. Validate the input format with regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$` (letters, digits, dashes/dots/underscores; case-insensitive; exactly one slash; an optional `:variant` suffix, which 96 of the 447 catalog IDs carry, `:free` and `:batch` among them; no spaces).
    If invalid, re-prompt once showing the expected pattern.
    On second invalid input, abort the custom flow and default to `1`.
+   Refuse, then re-prompt, an ID whose provider segment is `anthropic` or whose model segment contains `claude` (case-insensitive): a same-family judge would pass "Verify the external call" and be reported as cross-model evidence.
+   Refuse a router ID (`openrouter/auto` and the other `openrouter/` entries) the same way: it names no concrete model, so the generation record returns whichever model answered and the check reports `model_mismatch`, leaving the whole audit unverified.
+   The format regex already refuses the catalog's floating aliases (`~<provider>/<model>-latest`, 18 entries) for that same reason.
 
 3. On valid format, display the cost notice and wait for confirmation:
 
@@ -276,11 +285,12 @@ Your choice [1-7, Enter for default]:
 4. On `y` / `yes` → use the custom ID as `EXTERNAL_MODEL`.
    On `N` / empty / anything else → return to the main model menu (re-display from the top).
 
-**No silent interpolation.** The format regex is the only validation done by the skill; it rejects shell-suspicious characters (spaces, `;`, `|`, `$`, `` ` ``, backticks, etc.) before the value ever reaches the agent.
-The agent uses `jq --arg` parameterization (see `agents/cross-model-judge.md`), which is injection-safe regardless, but the skill-level regex prevents accidental typos from triggering OpenRouter API errors that would consume a billing call.
+**No silent interpolation.** Beside the Claude-family and router refusals, the format regex is the only validation done by the skill; it rejects shell-suspicious characters (spaces, `;`, `|`, `$`, `` ` ``, backticks, etc.) before the value ever reaches the agent.
+The agent passes that ID through `jq --arg` (see `agents/cross-model-judge.md`), which is injection-safe regardless, but the skill-level regex prevents accidental typos from triggering OpenRouter API errors that would consume a billing call.
+The target content is covered by a different mechanism: the agent writes the audit prompt to a file and passes it with `--rawfile`, so it never enters the shell source.
 
 **Do not persist the user's choice.** Same reasoning as walkthrough's notices: a "remember my pick" toggle would silently lock the audit into one model family across future invocations, defeating the purpose of cross-model judging.
-The menu is cheap (one keystroke for default) and the right model can depend on what the user already audited.
+The menu is cheap (one reply for default) and the right model can depend on what the user already audited.
 
 ### Launch cross-model judge
 
@@ -297,7 +307,8 @@ Spawn the **cross-model-judge** agent (see agents/cross-model-judge.md) with the
   - `skill-tool` (Claude-interpreted instructions, agent definition, or Claude-interpreted artifact) → `"other"`
   - `code` (project-wide or focused) → `"codebase"`
 - `AUDIT_FOCUS`: derive from the resolved reviewer's `SKILL.md`.
-  Read its `description:` frontmatter field (or the body if the description is sparse), identify the audit dimensions it claims to check: verbs like "review", "audit", "find", followed by their objects (e.g. "trigger accuracy, instruction clarity, security, completeness" for skill-adversary; "tool discrimination, schema quality, discoverability" for mcp-adversary; "code quality, security, architecture, test coverage" for critical-code-reviewer), and join them as `"<dim1>, <dim2>, ..."`.
+  Read its `description:` frontmatter field, and the body when that field names no dimension, identify the audit dimensions it claims to check: verbs like "review", "audit", "find", followed by their objects (e.g. "trigger edge cases, instruction ambiguities, contradictions, cross-file coherence, gaps" for skill-adversary; "tool-selection ambiguity, discoverability gaps, schema anti-patterns, semantic drift, error handling" for mcp-adversary; "code quality, security, architecture, test coverage" for critical-code-reviewer), and join them as `"<dim1>, <dim2>, ..."`.
+  Take them from what the reviewer claims to audit, never from the clauses that scope it out (`Does not auto-trigger on ...`, `Not for: ...`), whose objects read as dimensions too.
   If the reviewer surfaces no concrete dimensions, fall back to the generic `"code quality, security, correctness, completeness"`.
   Never pass an empty or literal `"undefined"` value; the external model would receive `AUDIT FOCUS: ` with no focus and produce a less targeted audit.
 - `EXTERNAL_MODEL`: the model ID selected at the previous step
@@ -309,7 +320,8 @@ The Agent's prompt instructs it to read the target audit skill's `SKILL.md` and 
 Never use the Skill tool for either: it would run the audit inline in the main context and block until it finishes.
 
 **Waiting for the Agents.** In an interactive session Claude Code runs every Agent in the background, so both calls return before either audit is done and each result arrives as a completion notification in a later turn.
-Tell the user in one line that both audits are running, then wait until both notifications have arrived before starting Phase 2: do not poll with `TaskOutput`, do not ask the user anything, and do not compile a partial report when the first one lands.
+Tell the user in one line that both audits are running and end the turn there; the notifications resume it, and Phase 2 starts once both have arrived.
+Waiting is that, and nothing else: do not poll with `TaskOutput`, do not ask the user anything, and do not compile a partial report when the first one lands.
 A failed Agent still notifies; its source counts as errored under Phase 2's convergence rule.
 If the Agents ran in the foreground instead (results already in the tool results), continue the same way.
 
@@ -382,15 +394,21 @@ To build this section, compare the two finding sets using semantic matching. Wor
 2. **Same root cause**: same underlying defect class (e.g. "stale documentation vs implementation", "missing error path", "ambiguous instruction", "unreachable branch"). Symptom phrasing differs; defect class doesn't.
 3. **Same fix mechanism**: the corrective action would touch the same surface (same lines, same instruction, same conditional). If both findings would be resolved by the same edit, they match.
 
+Pairing is one-to-one: a finding already paired is no longer available on the other side.
+When several findings match the same one, pair the closest and leave each remaining finding unpaired, in its own bucket and counted once, which keeps the identity below satisfiable.
 When only 1 signal aligns, treat as a near-miss: classify both findings separately (one Claude-only, one external-only) and add a brief note in the Convergence Analysis that they may target related issues. When 0 signals align, the findings are independent.
 
 Then: for each Claude finding, check whether it was already matched to an external finding. Classify every finding into exactly one bucket: agreed, Claude-only, or external-only.
 
-If either model returned zero findings or errored out, skip the convergence analysis and note which source is missing.
+Zero findings is a valid input, not a missing source: with an empty source every finding of the other one lands in its own bucket, which is the clearest blindspot signal the skill produces, and the identity below still holds with `A = 0`.
+Skip the convergence analysis only when a source errored out or came back unverified; then omit the `### Convergence Analysis` heading entirely, since walkthrough keys its bucket routing on that heading, and note which source is missing.
+
+**Structural single-bucket note.** The two sources do not answer in the same shape: an audit skill can report a class of finding the judge's prompt never asks for, trigger-boundary false positives and negatives being the usual case, and those land in a single bucket by construction rather than by divergence.
+Label them as such in the bucket list and in the Transparency block, so that a bucket built on a structural gap is not read as a blindspot signal.
 
 **Meta-bias note.** This matching step is performed by Claude, the same model whose self-preference is being audited. Self-preference can bias the classification in two directions: (a) over-matching (declaring "agreed" to suppress an external-only finding Claude missed), (b) under-matching (declaring "Claude-only" when Claude agreed but used different wording, inflating own-findings novelty). Boundary cases between agreed and Claude-only deserve the most skepticism. This caveat is also surfaced in the Transparency block.
 
-**Counts (mandatory: render verbatim, do not omit).** Before listing the buckets, emit a single line of the form:
+**Counts (mandatory whenever the Convergence Analysis section is rendered: verbatim, never omitted).** Before listing the buckets, emit a single line of the form:
 
     **Counts:** <R> raw findings (<E> external + <C> Claude) → <A> agreed pair(s) + <CO> Claude-only + <EO> external-only
 
@@ -410,6 +428,8 @@ Where: `R = E + C` (total raw count across both sources before convergence); `A`
 - **Circularity type:** <verdict>
 - **External model used:** <model-id> via OpenRouter
 - **External call:** generation <generation-id>, served by <provider>, <cost> USD, verified against OpenRouter's generation record (also listed on the Activity page of the OpenRouter account)
+- **External coverage:** the judge's `**Truncated:**` line verbatim; when files were dropped, an external-only gap on them reflects content the external model never saw
+- **Single-bucket by construction:** <list of findings the other source was never asked for, or "none">, whose bucket records a gap in the two prompts rather than a divergence between the models
 - **Residual bias risk:** Cross-model judging reduces but does not eliminate bias.
   The external model has its own biases. Convergent findings are highest confidence.
   Divergent findings warrant human attention.
@@ -461,7 +481,7 @@ Re-run `/audit:blindspot <target-path>` to retry the external call. `/audit:walk
 
 ### If fallback mode (no OpenRouter key)
 
-Once the audit skill Agent launched in the Phase 1 fallback has delivered its report (it runs once, never a second time here), append:
+Once the audit skill Agent launched in the Phase 1 fallback, or by the Phase 0 `No circularity` path, has delivered its report (it runs once, never a second time here), append:
 
 ```
 ## Blindspot Review: <target>
@@ -469,7 +489,7 @@ Once the audit skill Agent launched in the Phase 1 fallback has delivered its re
 ### Circularity Assessment
 
 **Audit skill:** <skill-name>
-**Verdict:** <Strong circularity / Model circularity / Structural circularity>
+**Verdict:** <Strong circularity / Model circularity / Structural circularity / No circularity>
 **Countermeasures applied:** None (OPENROUTER_API_KEY not set)
 
 ### Audit Findings
@@ -524,8 +544,8 @@ Run `/audit:walkthrough` (no arguments) to process these findings interactively.
 - **Transparency is mandatory.** Every report includes the circularity assessment and
   countermeasures applied (or not applied), regardless of findings.
 - **An external call counts only once proven.** The judge's generation ID is checked against OpenRouter's generation record in the main context; without a `verified` status, its findings are reported as unverified and never feed the convergence analysis.
-- **Model selection.** The external model is picked interactively at invocation via the menu in Phase 1 (default on Enter: `google/gemini-3.1-pro-preview`, strong reasoning, non-Claude family).
-  Six curated options are surfaced; option 7 accepts any OpenRouter model ID after format validation and an explicit cost-warning confirmation.
-  Both the skill and the agent re-validate against the format regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$` (defense in depth), and the agent uses `jq --arg` parameterization for the actual API call.
+- **Model selection.** The external model is picked interactively at invocation via the menu in Phase 1 (default on `default` or `1`: `google/gemini-3.1-pro-preview`, strong reasoning, non-Claude family).
+  Six curated options are surfaced; option 7 accepts any non-Claude, non-router OpenRouter model ID after format validation and an explicit cost-warning confirmation.
+  Both the skill and the agent re-validate against the format regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$` (defense in depth), and the agent passes the ID with `jq --arg` and the audit prompt with `--rawfile` from a file for the actual API call.
 - **No credentials in prompts.** The OPENROUTER_API_KEY is read from the environment.
   Never log, echo, or include it in any output.

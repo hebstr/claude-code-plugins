@@ -1,5 +1,5 @@
 [
-  {"query": "/audit:blindspot ~/.claude/skills/skill-adversary/ --reviewer audit:skill-adversary", "should_trigger": true},
+  {"query": "/audit:blindspot audit/skill-adversary --reviewer audit:skill-adversary", "should_trigger": true},
   {"query": "I want to review my skill with skill-adversary but it's a skill I wrote with Claude — is there a bias issue?", "should_trigger": false},
   {"query": "lance blindspot sur mcp-adversary qui review le MCP ouroboros", "should_trigger": false},
   {"query": "can Claude objectively review this skill or is there a conflict of interest?", "should_trigger": false},

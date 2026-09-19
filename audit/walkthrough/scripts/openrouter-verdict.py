@@ -31,7 +31,7 @@ import urllib.request
 from pathlib import Path
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-MODEL_PAT = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$")
+MODEL_PAT = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$")
 FENCE_PAT = re.compile(r"^```(?:json)?[ \t]*\n(.*)\n```$", re.DOTALL)
 VERDICTS = ("valid", "invalid")
 TEMPERATURE = 0.2

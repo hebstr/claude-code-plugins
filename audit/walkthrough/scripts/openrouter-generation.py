@@ -39,11 +39,12 @@ from datetime import datetime
 
 ENDPOINT = "https://openrouter.ai/api/v1/generation"
 GEN_PAT = re.compile(r"^gen-[A-Za-z0-9-]+$")
-MODEL_PAT = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$")
+MODEL_PAT = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$")
 CLOCK_SKEW = 60
 
 
 def model_matches(declared, expected):
+    declared, expected = declared.split(":")[0], expected.split(":")[0]
     return declared == expected or declared.startswith(f"{expected}-")
 
 

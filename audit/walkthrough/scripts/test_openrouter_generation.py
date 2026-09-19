@@ -114,6 +114,19 @@ def test_model_matches_accepts_dated_permaslug_only(served, expected):
     assert og.model_matches(served, MODEL) is expected
 
 
+@pytest.mark.parametrize(
+    ("served", "requested"),
+    [
+        ("deepseek/deepseek-r1:free", "deepseek/deepseek-r1:free"),
+        ("deepseek/deepseek-r1", "deepseek/deepseek-r1:free"),
+        ("deepseek/deepseek-r1-20260101", "deepseek/deepseek-r1:free"),
+        ("deepseek/deepseek-r1:free", "deepseek/deepseek-r1"),
+    ],
+)
+def test_model_matches_ignores_the_variant_suffix(served, requested):
+    assert og.model_matches(served, requested) is True
+
+
 def test_verified_record_reports_what_openrouter_declares():
     captured = []
     result, _ = run([record()], captured=captured)
@@ -223,6 +236,11 @@ def test_main_rejects_malformed_arguments(pair, capsys):
         og.main([*write_args(pair), "--since", str(SINCE)])
     assert excinfo.value.code == 2
     assert capsys.readouterr().out == ""
+
+
+def test_parse_args_accepts_a_variant_suffix():
+    args = og.parse_args([*write_args((GEN, "deepseek/deepseek-r1:free")), "--since", str(SINCE)])
+    assert args.check == [[GEN, "deepseek/deepseek-r1:free"]]
 
 
 def test_main_requires_a_check(capsys):

@@ -266,6 +266,10 @@ def test_main_rejects_malformed_model(tmp_path, capsys):
     assert capsys.readouterr().out == ""
 
 
+def test_model_pattern_accepts_a_variant_suffix():
+    assert ov.MODEL_PAT.match("deepseek/deepseek-r1:free")
+
+
 @pytest.mark.parametrize("blank", ["claim", "code"])
 def test_main_rejects_empty_input(tmp_path, blank):
     with pytest.raises(SystemExit) as excinfo:
