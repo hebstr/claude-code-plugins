@@ -18,6 +18,10 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: `skill-adversary` and `mcp-adversary` set `disable-model-invocation: true`, so the `Skill` tool refuses to launch them and the "User-invocable ONLY" contract their descriptions already stated is enforced at runtime, as it already was for `blindspot`.
   Their eval suites follow: the positive case invokes the slash command, and the natural-language cases that repeated a listed non-trigger verbatim now expect no trigger, which turns them into regression tests for the contract instead of contradictions of it.
   Seven skills still claim explicit invocation without enforcing it (`sweep`, `walkthrough`, and the five `workflow` skills); only `walkthrough` among them has an eval suite to realign.
+- `workflow`: `sync` no longer treats a line-number reference that merely points at a shifted line as stale, in Step 3 or in the deep-scan triage.
+  It never renumbers one: a shifted reference in live text is converted to a name (symbol, test title, section heading, verbatim quote), one in a dated or superseded section is left as written, and a reference whose target has not moved stays as is.
+  A pass had renumbered thirteen `file:NNN` references of a `DEFERRED.md` after an insertion shifted them.
+  `continue` follows: where it asked for line numbers in `PLAN.md`, it now asks for function names, test titles and section headings, and never line numbers.
 
 ### Fixed
 

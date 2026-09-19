@@ -59,7 +59,12 @@ A file is **stale** if:
 - It contains outdated references, examples, or cross-references
 - It lists items (features, backlog, design decisions) that no longer match the modified files
 
-A file is **not stale** if its content remains consistent with the current state despite referencing modified files.
+A file is **not stale** if:
+- Its content remains consistent with the current state despite referencing modified files
+- A line-number reference (`file:NNN`) merely points at a shifted line: a line shift alone is never staleness.
+Never renumber such a reference.
+In live text, convert it to a name that survives edits (function or symbol, test title, section heading, verbatim quote); in a dated or superseded section (a changelog entry, a closed item, a past review record), leave it as written.
+A numbered reference whose target has not moved stays as is.
 
 ### Step 4: Report
 
@@ -133,6 +138,7 @@ Collect agent results.
 For each reported issue:
 - **True positive**: fix it (same minimal edit rules as Step 5)
 - **False positive**: skip it silently (do not report FPs to the user; they add noise)
+- **Shifted line number**: a false positive, unless it sits in live text, where it is converted to a name as in Step 3, never renumbered
 
 Report using the same format as Step 5:
 
