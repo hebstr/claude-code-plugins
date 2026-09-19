@@ -17,7 +17,7 @@ Always includes a cross-repo semantic consistency scan with parallel agents.
 !`git rev-parse --git-dir >/dev/null 2>&1 && { git diff --name-only 2>/dev/null; git diff --cached --name-only 2>/dev/null; } || echo "__NO_GIT__"`
 
 **Directory listing:**
-!`find . -type f ! -path './.git/*' ! -path '*/node_modules/*' ! -path '*/renv/*' ! -path '*/venv/*' ! -path '*/.venv/*' ! -path '*/vendor/*' ! -path '*/.Rproj.user/*' ! -path '*/dist/*' ! -path '*/_site/*' ! -path '*/_book/*' ! -path '*/_freeze/*' ! -path '*.lock' 2>/dev/null | sort`
+!`if git rev-parse --git-dir >/dev/null 2>&1; then { git ls-files --cached --others --exclude-standard -- ':!:*.lock'; git ls-files --others --ignored --exclude-standard -- .claude; } | sort -u; else find . -type f ! -path './.git/*' ! -path '*/node_modules/*' ! -path '*/renv/*' ! -path '*/venv/*' ! -path '*/.venv/*' ! -path '*/vendor/*' ! -path '*/.Rproj.user/*' ! -path '*/dist/*' ! -path '*/_site/*' ! -path '*/_book/*' ! -path '*/_freeze/*' ! -path '*.lock' 2>/dev/null | sort; fi`
 
 ## Workflow
 
@@ -58,13 +58,15 @@ A file is **stale** if:
 - It describes behavior or structure that has changed
 - It contains outdated references, examples, or cross-references
 - It lists items (features, backlog, design decisions) that no longer match the modified files
+- It holds a line-number reference (`file:NNN`, a range `file:NNN-MMM`, `line NNN of file`) to a modified file whose cited line, read in `git show HEAD:<file>`, has shifted or vanished in the working copy: a shifted one in live text is converted to a name that survives edits (function or symbol, test title, section heading, verbatim quote); a vanished one is corrected like any outdated reference, in a dated or superseded section too
 
 A file is **not stale** if:
 - Its content remains consistent with the current state despite referencing modified files
-- A line-number reference (`file:NNN`) merely points at a shifted line: a line shift alone is never staleness.
-Never renumber such a reference.
-In live text, convert it to a name that survives edits (function or symbol, test title, section heading, verbatim quote); in a dated or superseded section (a changelog entry, a closed item, a past review record), leave it as written.
-A numbered reference whose target has not moved stays as is.
+- Its only shifted line-number references sit in a dated or superseded section (a changelog entry, a closed item, a past review record): leave them as written
+- Its numbered references point at targets that have not moved
+- Its line-number references sit in generated or recorded output (test snapshots, extracted test failures, logs, tool transcripts): never edit those
+
+Never renumber a line-number reference, except in a section the project's own instructions keep as line pointers on purpose: references there follow that project's convention, neither converted nor left behind.
 
 ### Step 4: Report
 
