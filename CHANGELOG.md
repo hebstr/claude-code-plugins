@@ -28,6 +28,10 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Fixed
 
+- `audit`: nothing proved that `blindspot`'s cross-model judge or `walkthrough`'s L2 verdict came from an external model, since both reported only what the calling model printed, and the judge runs in a subagent whose tool calls the user never sees.
+  Every OpenRouter call now carries its `gen-...` generation ID, and `audit/walkthrough/scripts/openrouter-generation.py` checks it against OpenRouter's generation record, which exists only for an ID OpenRouter issued and names the model that served it; the record appears about two minutes after the call, so the script retries for up to five minutes, and it rejects a record older than the audit to catch a replayed ID.
+  `blindspot` checks the judge's ID in the main context before Phase 2, and an unproven call is reported under its own template, with no convergence analysis built on it; `walkthrough` batches the check of every L2 verdict at Step 3 and marks each unproven one `unverified` with a per-finding anomaly.
+  `openrouter-verdict.py` adds `generation_id` to its output.
 - `audit`: `sweep` told its agents to invoke external skills by bare name (`/critical-code-reviewer`, `/testing-r-packages`, `/r-package-development`, `/cran-extrachecks`), while the `Skill` tool names a plugin skill `plugin:skill`; the invocations now use `posit-dev:critical-code-reviewer` and the `r-lib:` names, so an agent is less likely to fall back to inline review when the skill is installed.
 - `audit`: `blindspot`'s cross-model judge gave up after 120 seconds, too short for a reasoning model on a skill that ships a script: both Gemini entries of the menu timed out before answering, so the review lost its external half.
   The OpenRouter call now waits up to 580 seconds, and the judge runs it as a single Bash call with a 600-second timeout, which leaves room for curl's error to be reported where the tool's 120-second default would cut the call first.

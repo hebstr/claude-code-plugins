@@ -284,6 +284,8 @@ The menu is cheap (one keystroke for default) and the right model can depend on 
 
 ### Launch cross-model judge
 
+First run `date +%s` and keep its output as `judge_since`: "Verify the external call" below rejects a generation created before it, which is how a real ID replayed from an earlier audit is caught.
+
 Spawn the **cross-model-judge** agent (see agents/cross-model-judge.md) with these inputs:
 
 - `TARGET_PATH`: the resolved `<target-path>` from invocation
@@ -311,6 +313,30 @@ Tell the user in one line that both audits are running, then wait until both not
 A failed Agent still notifies; its source counts as errored under Phase 2's convergence rule.
 If the Agents ran in the foreground instead (results already in the tool results), continue the same way.
 
+### Verify the external call
+
+The judge's report comes from a subagent whose tool calls the user does not see, so nothing in it proves the OpenRouter call happened.
+OpenRouter's generation record does: it exists only for an ID OpenRouter issued, and it names the model that served the call.
+Run this in the main context once the judge has notified, before Phase 2, unless the judge reported `Failed` (its source already counts as errored, and it is reported with the "If the external call is unverified" template, `<status>` being `failed` and `<reason>` the judge's error).
+
+Take `GEN_ID` from the judge's `**Generation ID:**` line; `MODEL` is `EXTERNAL_MODEL`, never the judge's `**Served model:**` line, since checking the record against the judge's own claim would only test the judge against itself; `<JUDGE_SINCE>` is `judge_since`.
+When the ID line reads `none`, skip the script: the external source is `unverified` with the reason `no generation ID`.
+The script sits in the walkthrough skill, resolved as for `scan-reviewers.py` in "Reviewer selection" (the same fallback applies when `$CLAUDE_PLUGIN_ROOT` is unset).
+Run it as one Bash call with `timeout: 600000`: OpenRouter publishes a record about two minutes after the call (measured 2026-09-19), and the script retries a missing one every 15 s for up to 300 s.
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/scripts/openrouter-generation.py" --since '<JUDGE_SINCE>' --check '<GEN_ID>' '<MODEL>'
+```
+
+stdout holds a one-entry JSON array: `status`, plus what OpenRouter declares for the ID (`model`, `provider`, `total_cost`, `created_at`).
+Exit 2 means a malformed invocation (a mistyped or placeholder ID fails the pattern check); treat it as `unverified` with `malformed check: <stderr last line>` as the reason.
+- `verified`: the external source stands.
+Phase 2 reports the declared model, provider and cost.
+- Any other status (`model_mismatch`, `stale`, `not_found`, `error`), or no ID: the external source is `unverified`.
+
+An `unverified` source counts as errored under Phase 2's convergence rule, so no convergence analysis is built on it; report with the "If the external call is unverified" template below.
+Never drop its findings silently and never present them as cross-model evidence.
+
 ### If OpenRouter not available: Fallback mode
 
 Do NOT silently skip.
@@ -326,7 +352,8 @@ After collecting results, compile the final report.
 
 ### If cross-model judge was used
 
-Present the report using this template:
+Use this template only when "Verify the external call" returned `verified`; otherwise use "If the external call is unverified" below.
+`<model-id>` is the model OpenRouter declared in the generation record, and `<generation-id>`, `<provider>` and `<cost>` come from the same record.
 
 ```
 ## Blindspot Review: <target>
@@ -335,7 +362,7 @@ Present the report using this template:
 
 **Audit skill:** <skill-name>
 **Verdict:** <Strong circularity / Model circularity / Structural circularity>
-**Countermeasures applied:** Cross-model judge via OpenRouter (<model-id>)
+**Countermeasures applied:** Cross-model judge via OpenRouter (<model-id>, generation <generation-id> verified)
 
 ### Cross-Model Findings (<model-id>)
 
@@ -382,6 +409,7 @@ Where: `R = E + C` (total raw count across both sources before convergence); `A`
 
 - **Circularity type:** <verdict>
 - **External model used:** <model-id> via OpenRouter
+- **External call:** generation <generation-id>, served by <provider>, <cost> USD, verified against OpenRouter's generation record (also listed on the Activity page of the OpenRouter account)
 - **Residual bias risk:** Cross-model judging reduces but does not eliminate bias.
   The external model has its own biases. Convergent findings are highest confidence.
   Divergent findings warrant human attention.
@@ -395,6 +423,40 @@ Where: `R = E + C` (total raw count across both sources before convergence); `A`
 ### Next step
 
 Run `/audit:walkthrough` (no arguments) to process these findings interactively. The walkthrough auto-detects this report's `### Convergence Analysis` section, tags each finding by bucket (agreed / claude-only / external-only), and routes L2 cross-model verification accordingly: severity trigger skipped on agreed (an L1 divergence or failure still escalates), forced on claude-only, standard severity rules on external-only (the bucket tag alone does not force L2; the parent surfaces a "Claude tends to under-rate these" warning).
+```
+
+### If the external call is unverified
+
+When "Verify the external call" did not return `verified`, the external findings cannot count as a second model's opinion.
+Report them apart, with no Convergence Analysis, so `/audit:walkthrough` does not route L2 on buckets built from them:
+
+```
+## Blindspot Review: <target>
+
+### Circularity Assessment
+
+**Audit skill:** <skill-name>
+**Verdict:** <Strong circularity / Model circularity / Structural circularity>
+**Countermeasures applied:** None verified (external call unverified: <status>, <reason>)
+
+### Same-Model Findings (Claude)
+
+<Findings from the original audit skill>
+
+### Unverified External Findings (reported as <EXTERNAL_MODEL>)
+
+<Findings from the judge's report, unmodified. No OpenRouter generation record confirms that an external model produced them.>
+
+### Transparency
+
+- **Circularity type:** <verdict>
+- **External model used:** unverified. Generation ID <generation-id or "none">, check status <status>: <reason>
+- **Residual bias risk:** HIGH, the cross-family mitigation could not be proven to have run.
+  Treat every finding as a same-model finding.
+
+### Next step
+
+Re-run `/audit:blindspot <target-path>` to retry the external call. `/audit:walkthrough` on this report applies the standard L2 check (no bucket routing).
 ```
 
 ### If fallback mode (no OpenRouter key)
@@ -461,6 +523,7 @@ Run `/audit:walkthrough` (no arguments) to process these findings interactively.
   Results are compared, not merged.
 - **Transparency is mandatory.** Every report includes the circularity assessment and
   countermeasures applied (or not applied), regardless of findings.
+- **An external call counts only once proven.** The judge's generation ID is checked against OpenRouter's generation record in the main context; without a `verified` status, its findings are reported as unverified and never feed the convergence analysis.
 - **Model selection.** The external model is picked interactively at invocation via the menu in Phase 1 (default on Enter: `google/gemini-3.1-pro-preview`, strong reasoning, non-Claude family).
   Six curated options are surfaced; option 7 accepts any OpenRouter model ID after format validation and an explicit cost-warning confirmation.
   Both the skill and the agent re-validate against the format regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$` (defense in depth), and the agent uses `jq --arg` parameterization for the actual API call.

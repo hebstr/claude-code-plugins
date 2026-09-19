@@ -152,11 +152,14 @@ if [ "$CURL_EXIT" -ne 0 ]; then
 elif [ -z "$RESPONSE" ]; then
   echo "ERROR: empty response from OpenRouter (curl stderr: $CURL_ERR)"
 else
-  echo "$RESPONSE" | jq -r '.choices[0].message.content // .error.message // "ERROR: response had no content"'
+  echo "$RESPONSE" | jq -r '"GENERATION_ID: \(.id // "none")", "SERVED_MODEL: \(.model // "none")", "PROVIDER: \(.provider // "none")", "---", (.choices[0].message.content // .error.message // "ERROR: response had no content")'
 fi
 
 cleanup  # explicit backstop in case the trap is bypassed (e.g. by a future refactor that splits the block).
 ```
+
+The three header lines are OpenRouter's own fields: `id` is the `gen-...` generation ID, `model` the model that actually answered.
+Copy them into the output below exactly as printed, never retyped or completed: the parent skill checks the ID against OpenRouter's generation record, and a mistyped ID fails that check the same way a fabricated one does.
 
 `-sS` silences the progress bar but preserves stderr; the captured `CURL_ERR` distinguishes DNS, TLS, auth, and timeout failures.
 `curl -sS` does not echo request headers, so the `Authorization` value never enters stderr, but verify before adding `-v` or `--trace*` in any future debug branch, as those flags would leak the API key.
@@ -179,6 +182,9 @@ Parse the external model's response into structured findings.
 ## Cross-Model Audit Results
 
 **External model:** <model ID>
+**Generation ID:** <GENERATION_ID line, or "none">
+**Served model:** <SERVED_MODEL line, or "none">
+**Provider:** <PROVIDER line, or "none">
 **Target:** <TARGET_PATH>
 **Status:** Success / Failed (<error>)
 **Findings:** <count>

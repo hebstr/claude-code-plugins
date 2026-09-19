@@ -375,8 +375,8 @@ Examples:
 - "⚠ Cross-model verification incomplete: L1 timeout, L2 unavailable.
 Only main-model opinion available.
 Verification tagged 'unverified' (audit meta-tag, distinct from the verdict); the verdict is still one of ACCEPTED/REJECTED/NOTED/DEFERRED, assigned from Claude's solo assessment alone."
-- "Cross-model L2: valid (openai/gpt-5.6-sol via OpenRouter): `${1:?}` does not guard the second call site; finding confirmed."
-- "Cross-model L2: invalid (google/gemini-3.1-pro-preview via OpenRouter): the loop exits on the sentinel; divergence with Claude's verdict surfaced to the user."
+- "Cross-model L2: valid (openai/gpt-5.6-sol via OpenRouter, gen-1789848711-DY3K9lDJO3kqDAfH1bPA): `${1:?}` does not guard the second call site; finding confirmed."
+- "Cross-model L2: invalid (google/gemini-3.1-pro-preview via OpenRouter, no generation ID): the loop exits on the sentinel; divergence with Claude's verdict surfaced to the user."
 - "Cross-model: L1 only (not Blocking/Required/Critical, no divergence)."
 - "Cross-model: skipped (finding classified Minor)."
 - "Cross-model L2: skipped; finding tagged 'agreed' from blindspot input (already cross-validated by <model> in Phase 1; an L1 divergence or failure would still escalate)."
@@ -506,12 +506,15 @@ After the status counts, add a **Mechanisms used** block summarizing what fired 
 For each mechanism, report: count of invocations, and if zero, the reason in parentheses.
 When the input came from `blindspot`, add a `blindspot input` segment first, summarizing bucket distribution and L2 savings/forces from the bucket-aware routing.
 Example:
-> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required/Critical, 1 by L1 divergence; model: openai/gpt-5.6-sol via OpenRouter) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
+> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · QA auto 0/22 (no ambiguous verdicts) · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required/Critical, 1 by L1 divergence; model: openai/gpt-5.6-sol via OpenRouter; generations verified 12/12 (total cost 0.0412 USD)) · lateral think 0 (no stuck points or regressions) · evaluate ✓ (score 0.88, based on git diff of 4 files) · drift skipped (< 4 fixes)
 
 The bridge returns pre-formatted mechanism summaries (cross-model status, evaluate results, drift score).
 Include them verbatim.
 If Ouroboros was not available, state: "Ouroboros: not available; walkthrough ran without automated QA, evaluate, lateral think, or drift check."
 (L1 and L2 are reported on their own segments, since they run without Ouroboros.)
+
+**L2 generation check.** Before this block, run the bridge's "Generation check (Step 3)" whenever L2 returned at least one verdict, and include its summary in the L2 segment.
+Every `L2 verdict unverified: …` anomaly it emits is rendered verbatim next to its finding in the wrap-up table, prefixed with `⚠`.
 
 **Low fix-count rendering.** When fewer than 2 fixes were applied, do not run the bridge's evaluate (per the bridge's below-trigger contract).
 Render in the Mechanisms block: `evaluate skipped (only N fix(es))` (where N is 0 or 1).
@@ -651,10 +654,11 @@ It handles Agent spawning (L1) and the OpenRouter verdict script (L2).
 - **Step 3 (evaluate):** when >= 2 fixes applied, run the bridge's evaluate for final validation.
 It builds the artifact from git diff, plus the full content of each file the walkthrough created.
 - **Step 3 (drift):** when >= 4 fixes applied, run the bridge's drift check.
+- **Step 3 (generation check):** when L2 returned at least one verdict, run the bridge's "Generation check (Step 3)" before the Mechanisms block.
 
 Present all Ouroboros results inline as described in the mechanism transparency format (Step 2b).
 Runtime errors are caught by the bridge: never let an Ouroboros, L1 or L2 failure block the walkthrough.
 
 **Model selection (L2).** The bridge picks one external model per finding from the curated table in `audit/blindspot/agents/cross-model-judge.md`: `openai/gpt-5.6-sol` by default, `google/gemini-3.1-pro-preview` when blindspot's first phase already used an OpenAI model.
 L2 does not use Ouroboros consensus, whose non-Anthropic voters become the default Claude model under the plugin's `--llm-backend claude_code`, so `~/.ouroboros/config.yaml` `consensus` settings have no effect on it.
-The model that actually answered (`served_model`) is reported on each finding's L2 line and in the Step 3 Mechanisms block.
+The model that actually answered (`served_model`) is reported on each finding's L2 line and in the Step 3 Mechanisms block, with the call's OpenRouter generation ID; Step 3 checks every ID against OpenRouter's generation record through `scripts/openrouter-generation.py` and marks unproven verdicts `unverified`.

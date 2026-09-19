@@ -1,6 +1,6 @@
 ---
 name: walkthrough-ouroboros-bridge
-description: Centralizes all Ouroboros integration for the review walkthrough, covering detection, QA on ambiguous findings, cross-model validation (L1 intra-family Agent + L2 cross-provider through OpenRouter, the latter independent of Ouroboros), lateral thinking on stuck points, final evaluate, and drift check.
+description: Centralizes all Ouroboros integration for the review walkthrough, covering detection, QA on ambiguous findings, cross-model validation (L1 intra-family Agent + L2 cross-provider through OpenRouter, the latter independent of Ouroboros, with its generation IDs checked against OpenRouter at Step 3), lateral thinking on stuck points, final evaluate, and drift check.
 ---
 
 # Review Walkthrough: Ouroboros Bridge
@@ -197,7 +197,8 @@ It does not go through `ouroboros_evaluate` with `trigger_consensus`: the Ourobo
 - `google/gemini-3.1-pro-preview` when the input came from `blindspot` and the external model carried from SKILL.md Step 1 (parsed from the report's `### Cross-Model Findings (<model>)` header) is an `openai/` model.
 A `claude-only` finding is one that model did not flag, so asking it again biases the answer.
 
-**Call.** The claim is the finding's claim as the reviewer stated it; the code section is the code it targets, verbatim.
+**Call.** Before the first L2 call of the walkthrough, run `date +%s` once and keep its output as `l2_since`, the replay bound that "Generation check (Step 3)" passes to `--since`.
+The claim is the finding's claim as the reviewer stated it; the code section is the code it targets, verbatim.
 Neither ever enters the shell source: reviewed content can hold any line, including a heredoc delimiter or this very block, and would then run as commands.
 Write the claim and the code section with the Write tool to two new files under the session scratchpad directory (named per finding, e.g. `l2-<n>-claim.txt` and `l2-<n>-code.txt`), then substitute the four placeholders (`<MODEL>`, `<CLAIM FILE>`, `<CODE FILE>`, `<FILE PATH>`) and run the block as one Bash call.
 Inside the single quotes, write each `'` of a substituted value as `'\''`.
@@ -224,7 +225,8 @@ exit "$rc"
 
 `${CLAUDE_SKILL_DIR}` resolves as in `agents/orchestrator.md` ("Reviewer selection"): when the runtime does not export it, substitute the path announced at the top of the skill prompt.
 
-**Result.** The block exits with the script's own status, so branch on the Bash call's exit status; stdout holds the script's single JSON object: `verdict` (`valid` / `invalid` / null), `rationale`, `requested_model`, `served_model`, `error`.
+**Result.** The block exits with the script's own status, so branch on the Bash call's exit status; stdout holds the script's single JSON object: `verdict` (`valid` / `invalid` / null), `rationale`, `requested_model`, `served_model`, `generation_id`, `error`.
+Keep `generation_id` with `requested_model` for every exit-0 result: "Generation check (Step 3)" verifies them all before the wrap-up.
 - Exit 0: `valid` means the external model confirms the finding, `invalid` means it rejects it; show the rationale on the finding's L2 line.
 - Exit 1: the call or its parsing failed (missing key, HTTP error, timeout, truncated or non-JSON answer); apply the L2 row of "Error handling" with `error` as the reason.
 - Exit 2: the invocation itself was malformed (stderr carries the reason); apply the same row with `L2 call malformed: <stderr last line>` as the reason (argparse prints its usage banner first and the error last), and do not retry with guessed values.
@@ -232,6 +234,7 @@ exit "$rc"
 **Model transparency:** always report the alternate model identity (the one spawned, not the main).
 L1: `Agent (<alternate>)` where `<alternate>` is the family token from the selection table (`sonnet`, `opus`, or `sonnet` for the default branch; Haiku never appears as an alternate).
 L2: `served_model` from the script's result, the model OpenRouter reports as having answered; when it is null, `<requested_model> (served model not reported)`.
+Follow it with the `generation_id`, or `no generation ID` when it is null, so the user can find the call on the Activity page of the OpenRouter account.
 
 If `OPENROUTER_API_KEY` not set, L2 unavailable.
 L1 divergences flagged but not escalated.
@@ -252,6 +255,32 @@ Apply this routing on top of the standard severity rules:
   | `external-only` | run normally on Important+ | follow standard severity rules                                                                                                                                         | Standard routing: the parent skill (SKILL.md Step 2b mechanism transparency) is responsible for surfacing the "Claude tends to under-rate these" warning to the user; this table only sets the L1/L2 routing. |
 
 If no bucket tag is present (non-blindspot input), ignore this table and apply the standard severity rules only.
+
+## Generation check (Step 3)
+
+An L2 verdict is the output of a script run by the model being cross-checked, so nothing in it proves the call reached OpenRouter.
+The generation record does: OpenRouter keeps one per call, keyed by the `gen-...` ID, and answers 404 for an ID it never issued.
+Run this once, at Step 3 before the wrap-up, over every exit-0 L2 result; skip it when there is none.
+Batching it there costs no wait per finding: a record is published about two minutes after its call (measured 2026-09-19), so a check right after each call would sit through that delay every time.
+
+Pass one `--check` per result, its `generation_id` and its `requested_model` (never `served_model`, which is the verdict's own claim), and `l2_since` as `--since`.
+A result whose `generation_id` is null cannot be checked: count it as `unverified` with the reason `no generation ID`, without passing it to the script.
+Run the block as one Bash call with `timeout: 600000`: the script retries a missing record every 15 s for up to 300 s.
+
+```bash
+SCRIPT="${CLAUDE_SKILL_DIR}/scripts/openrouter-generation.py"
+python3 "$SCRIPT" --since '<L2_SINCE>' --check '<GEN_ID>' '<MODEL>' --check '<GEN_ID>' '<MODEL>'
+```
+
+stdout holds a JSON array in `--check` order; each entry carries `status` and what OpenRouter declares for the ID (`model`, `provider`, `total_cost`, `created_at`).
+Exit 2 means a malformed invocation (a placeholder left in place fails the ID or model pattern); report it as below with `L2 generation check malformed: <stderr last line>` for every result.
+- `verified`: the call happened, on that model, after the walkthrough started.
+- Any other status (`model_mismatch`, `stale`, `not_found`, `error`), or a missing ID: the finding's L2 verdict is `unverified`.
+
+For each `unverified` verdict, emit a per-finding `warn` anomaly with the exact string `L2 verdict unverified: generation <id> <status> (<error>).`, rendered verbatim in the wrap-up next to that finding; for a result with no ID, `<id>` is `none`, `<status>` is `unverified` and `<error>` is `no generation ID`.
+The verdict already drove the finding's decision during Step 2, so the anomaly is what tells the user which decisions rested on an unproven call.
+
+Return the pre-formatted summary for the L2 segment of the Mechanisms block: `generations verified <V>/<N> (total cost <sum of total_cost> USD)`, where `N` counts every exit-0 L2 result, including those with no ID, and the sum covers the `verified` entries only.
 
 ## Lateral think (Step 2b-2c)
 
@@ -359,6 +388,7 @@ Apply per-step rules:
   | Lateral think (Step 2b-2c) | Low — creative unblocking is best-effort                                                                   | Report inline `"Lateral think: error — <one-line reason>. Skipped."`, no anomaly.                                                                                                       |
   | Cross-model L1 (Step 2b)   | Depends on severity — see L1 failure handling above (this section formalizes the same rule)                | Important+ findings: escalate to L2 if key set; else mark finding `unverified` + per-finding `warn` anomaly. Below Important+: report and skip silently is acceptable.                  |
   | Cross-model L2 (Step 2b)   | High on Blocking/Required/Critical and `claude-only` findings — the entire point of the call is unverified | Mark the finding `unverified` and emit a per-finding `warn` anomaly: `Cross-provider verification failed: L2 errored (<reason>). Finding accepted without cross-provider verification.` |
+  | Generation check (Step 3)  | High — an unproven L2 call is indistinguishable from a fabricated one                                      | Mark each affected L2 verdict `unverified` with the per-finding `warn` anomaly of "Generation check (Step 3)"; never render the Mechanisms segment as fully verified.                   |
   | Final Evaluate (Step 3)    | High — post-fix codebase was never validated                                                               | Report in the Mechanisms block with `⚠` prefix: `⚠ evaluate failed (<one-line reason>) — post-fix codebase not validated.` Do not render a success-style "evaluate ✓" line.             |
   | Drift check (Step 3)       | Medium — drift on ≥ 4 fixes is a real degradation guard                                                    | Report in the Mechanisms block with `⚠` prefix: `⚠ drift check failed (<one-line reason>) — cumulative drift unverified.`                                                               |
 

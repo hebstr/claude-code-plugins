@@ -6,10 +6,13 @@ single chat completion request to OpenRouter, and prints one JSON object to
 stdout:
 
     {"verdict": "valid" | "invalid" | null, "rationale": str | null,
-     "requested_model": str, "served_model": str | null, "error": str | null}
+     "requested_model": str, "served_model": str | null,
+     "generation_id": str | null, "error": str | null}
 
 `served_model` is the model OpenRouter reports as having answered, which is
-the identity to show the user. Exit status is 0 when a verdict was obtained,
+the identity to show the user. `generation_id` is the `gen-...` ID OpenRouter
+assigned to the call, which `openrouter-generation.py` checks against the
+account's generation record. Exit status is 0 when a verdict was obtained,
 1 when the call or its parsing failed (the JSON carries the reason), and 2 on
 invalid arguments (the reason goes to stderr, no JSON).
 
@@ -78,12 +81,15 @@ def build_payload(model, claim, code, path, max_tokens):
     }
 
 
-def make_result(model, *, verdict=None, rationale=None, served_model=None, error=None):
+def make_result(
+    model, *, verdict=None, rationale=None, served_model=None, generation_id=None, error=None
+):
     return {
         "verdict": verdict,
         "rationale": rationale,
         "requested_model": model,
         "served_model": served_model,
+        "generation_id": generation_id,
         "error": error,
     }
 
@@ -110,20 +116,28 @@ def parse_completion(model, body):
     if not isinstance(body, dict):
         return make_result(model, error="response is not a JSON object")
     served = body.get("model") if isinstance(body.get("model"), str) else None
+    gen = body.get("id") if isinstance(body.get("id"), str) else None
     if body.get("error") is not None:
-        return make_result(model, served_model=served, error=error_message(body))
+        return make_result(model, served_model=served, generation_id=gen, error=error_message(body))
     choices = body.get("choices")
     if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
-        return make_result(model, served_model=served, error="response has no choices")
+        return make_result(
+            model, served_model=served, generation_id=gen, error="response has no choices"
+        )
     choice = choices[0]
     if choice.get("finish_reason") == "length":
         return make_result(
-            model, served_model=served, error="response truncated (finish_reason=length)"
+            model,
+            served_model=served,
+            generation_id=gen,
+            error="response truncated (finish_reason=length)",
         )
     message = choice.get("message")
     content = message.get("content") if isinstance(message, dict) else None
     if not isinstance(content, str) or not content.strip():
-        return make_result(model, served_model=served, error="response content is empty")
+        return make_result(
+            model, served_model=served, generation_id=gen, error="response content is empty"
+        )
     text = content.strip()
     fenced = FENCE_PAT.match(text)
     if fenced:
@@ -132,17 +146,27 @@ def parse_completion(model, body):
         data = json.loads(text)
     except ValueError:
         return make_result(
-            model, served_model=served, error=f"content is not JSON: {content[:200]!r}"
+            model,
+            served_model=served,
+            generation_id=gen,
+            error=f"content is not JSON: {content[:200]!r}",
         )
     verdict = data.get("verdict") if isinstance(data, dict) else None
     rationale = data.get("rationale") if isinstance(data, dict) else None
     if verdict not in VERDICTS:
         return make_result(
-            model, served_model=served, error=f"verdict is not valid/invalid: {verdict!r}"
+            model,
+            served_model=served,
+            generation_id=gen,
+            error=f"verdict is not valid/invalid: {verdict!r}",
         )
     if not isinstance(rationale, str):
-        return make_result(model, served_model=served, error="rationale is missing")
-    return make_result(model, verdict=verdict, rationale=rationale.strip(), served_model=served)
+        return make_result(
+            model, served_model=served, generation_id=gen, error="rationale is missing"
+        )
+    return make_result(
+        model, verdict=verdict, rationale=rationale.strip(), served_model=served, generation_id=gen
+    )
 
 
 def request_verdict(model, claim, code, path, api_key, timeout, max_tokens, opener=None):

@@ -23,8 +23,9 @@ def load_module():
 ov = load_module()
 
 
-def completion(content, *, finish="stop", served=MODEL):
+def completion(content, *, finish="stop", served=MODEL, gen_id="gen-1-abc"):
     return {
+        "id": gen_id,
         "model": served,
         "choices": [{"finish_reason": finish, "message": {"content": content}}],
     }
@@ -99,8 +100,19 @@ def test_parse_plain_json_verdict():
         "rationale": "Real bug.",
         "requested_model": MODEL,
         "served_model": "openai/x",
+        "generation_id": "gen-1-abc",
         "error": None,
     }
+
+
+def test_parse_error_keeps_generation_id():
+    body = completion("", gen_id="gen-2-def")
+    assert ov.parse_completion(MODEL, body)["generation_id"] == "gen-2-def"
+
+
+def test_parse_non_string_generation_id_is_dropped():
+    body = completion('{"verdict": "valid", "rationale": "ok"}', gen_id=42)
+    assert ov.parse_completion(MODEL, body)["generation_id"] is None
 
 
 def test_parse_fenced_json_verdict():
@@ -280,6 +292,7 @@ def test_main_without_key_reports_error(tmp_path, monkeypatch, capsys):
     output = json.loads(capsys.readouterr().out)
     assert output["error"] == "OPENROUTER_API_KEY is not set"
     assert output["requested_model"] == MODEL
+    assert output["generation_id"] is None
 
 
 def test_main_success_prints_verdict(tmp_path, monkeypatch, capsys):
