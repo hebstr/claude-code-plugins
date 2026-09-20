@@ -18,7 +18,7 @@ description: >
   Walkthrough-only mode: invoke without a target when a review report already exists in the conversation.
 
   Revisit-deferred mode: invoke with `--revisit-deferred` (no target, no reviewer) to walk through items previously logged in `DEFERRED.md`.
-  At the end, the file is rewritten in place: rows resolved during the walkthrough (ACCEPTED, REJECTED, NOTED) are dropped; rows still deferred remain.
+  At the end, the file is rewritten in place: rows resolved during the walkthrough are dropped, and every other row is kept, whether it was re-deferred or never reached.
 allowed-tools: Read Write Edit Glob Grep Bash Agent AskUserQuestion
 ---
 
