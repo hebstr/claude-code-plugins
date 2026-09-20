@@ -18,7 +18,8 @@ Extract from the user's request:
 - **reviewer**: `--reviewer` value (no hardcoded list, no silent default, see "Reviewer selection" below)
 - **batch**: `--batch` / `--no-batch` override (optional)
 
-Adversarial cross-provider validation (L2) is always on for Blocking/Required/Critical findings when `OPENROUTER_API_KEY` is set: no flag to parse.
+Adversarial cross-provider validation (L2) runs whenever `OPENROUTER_API_KEY` is set: no flag to parse.
+Which findings it fires on is stated in one place only, the "Level 2: Cross-provider" triggers of `agents/ouroboros-bridge.md`, the severity trigger being exempted on the `agreed` bucket and forced on `claude-only`, so a summary that names severities alone is wrong in both directions.
 
 ## Reviewer selection
 
@@ -34,10 +35,18 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/scan-reviewers.py"
 Note: `${CLAUDE_SKILL_DIR}` is the absolute path to this skill's directory.
 If your runtime does not export it as an environment variable, substitute it with the path announced by Claude Code at the top of the skill prompt (`Base directory for this skill: <path>`).
 
+A path reaching a shell takes that variable; a path in a reading instruction does not.
+The difference is who resolves it: a shell resolves against the working directory, which for a walkthrough is the user's project and holds none of this skill's files, while a file you are told to read is resolved against the skill directory, which is why `agents/...` and `templates/...` appear bare throughout these files and only the `python3` invocations are anchored.
+
 It returns JSON with `candidates`: each candidate has `name`, `category` (`code` / `skill-tool` / `unknown`), `path`, and `description_excerpt`.
 The script scans skills under `~/.claude/skills/`, under `.claude/skills/` from the working directory up to its repository root, and, for each plugin in `~/.claude/plugins/installed_plugins.json` installed for this project (user or managed scope, or a project/local install matching the current project) and not set to `false` in `enabledPlugins` (user, project, local and managed settings), the skills its marketplace entry declares, read from the install path or else from the marketplace catalog in `~/.claude/plugins/known_marketplaces.json` (the whole set for a marketplace-root `source`, otherwise alongside `<installPath>/skills/*/` and the paths `plugin.json` declares; paths outside the install path are ignored), filters by name+description heuristics, and excludes self-references (`audit:walkthrough`, `audit:blindspot`).
 Plugin skills are named `plugin:skill`; user and project skills keep their bare name, and a personal skill shadows a project skill of the same name.
 If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path).
+
+The zero-candidate test is not the only outcome worth reading.
+The scan writes a diagnostic to stderr for an unreadable plugin manifest and for each malformed manifest entry, and keeps emitting well-formed JSON either way: the malformed-entry path skips that one plugin and leaves the others, so the count stays non-zero while a whole plugin's reviewers are missing.
+The bare invocation above already puts that text in front of you, so nothing needs capturing; what is required is relaying it.
+When the scan produced any stderr, say so when presenting the candidate list, naming what was skipped and that the list may be incomplete, rather than offering it as the full set of installed reviewers.
 Do not invent names.
 
 **Step 2: validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`).
@@ -79,7 +88,10 @@ Suggested: <chosen name> (<one-line rationale>).
 Pick a reviewer or reply `ok` to accept the suggestion.
 ```
 
-On the user's response: empty input or explicit confirmation → use the suggested reviewer; a candidate name from the scanned list (full or bare suffix) → use that one; anything else → re-prompt with the same options.
+On the user's response: empty input or explicit confirmation → use the suggested reviewer; a candidate name from the scanned list (full or bare suffix) → use that one; anything else → re-prompt once with the same options, then use the suggested reviewer on a second unusable reply.
+
+Every gate of this skill that waits on the user bounds itself that way, re-prompting at most once and then taking its own safe default, and which default is safe differs by gate, which is why they differ: here the suggestion, already shown beside the full scanned list; abort on the adversarial degradation notice of `SKILL.md`, where continuing would silently weaken a check; proceeding without chaining on the circularity nudge below, where the offer is an enrichment and declining costs nothing.
+An unbounded re-prompt is the one shape none of them takes, a user who cannot phrase an answer being left with no way forward.
 Once the choice is locked in, carry the chosen reviewer's `category` forward: it gates calibration injection (see "Inject calibration and launch").
 
 ## Circularity check (blindspot suggestion)
@@ -101,13 +113,29 @@ Match any of:
 
 If none of these apply, skip this section silently and proceed to "Detect deployment context".
 
-If a high-signal case matches, present this nudge to the user (one prompt, then wait for response):
+If a high-signal case matches, test the OpenRouter key first, as blindspot itself does before its own Phase 1, and present the matching nudge (one prompt, then wait for response):
+
+```bash
+test -n "$OPENROUTER_API_KEY" && echo "openrouter:available" || echo "openrouter:missing"
+```
+
+On `openrouter:available`:
 
 ```
 Circularity detected — <reason in one line>.
 blindspot can route a parallel cross-model audit (via OpenRouter) and tag findings as agreed/Claude-only/external-only before the walkthrough. The walkthrough will then skip the severity trigger of L2 on agreed findings and force L2 on Claude-only ones.
 
 Chain via /audit:blindspot first? [y/N]
+```
+
+On `openrouter:missing`, the pitch above is void and must not be made: blindspot falls back to single-model mode, whose report carries no `### Convergence Analysis`, and Step 1 of the walkthrough routes by severity alone when that section is absent.
+Offer what the fallback actually delivers instead:
+
+```
+Circularity detected — <reason in one line>.
+OPENROUTER_API_KEY is not set, so blindspot would run single-model: no external judge, no `### Convergence Analysis`, hence no bucket tagging and no change to L2 routing. Over running the reviewer from here, it would still add a written circularity verdict, the named bias risks, and a manual-countermeasures checklist.
+
+Chain via /audit:blindspot anyway? [y/N]
 ```
 
 **On user response:**
@@ -123,18 +151,18 @@ Chain via /audit:blindspot first? [y/N]
 
     /audit:blindspot <target> --reviewer <reviewer>
 
-  When blindspot's report is in the conversation (it will contain a `### Convergence Analysis` section), relaunch `/audit:walkthrough` with no arguments. The walkthrough will detect the report, tag findings by bucket (agreed / claude-only / external-only), and route L2 accordingly (severity trigger skipped on agreed, forced on claude-only).
+  When blindspot's report is in the conversation, relaunch `/audit:walkthrough` with no arguments; the walkthrough detects the report either way. With OPENROUTER_API_KEY set, that report carries a `### Convergence Analysis` section, and the walkthrough tags findings by bucket (agreed / claude-only / external-only) and routes L2 accordingly (severity trigger skipped on agreed, forced on claude-only). Without the key, it carries no such section and the walkthrough routes by severity alone.
   ```
 
   Do not emit the structured block in this branch: the walkthrough has not run.
   The user re-enters via `/audit:walkthrough` (walkthrough-only mode) after blindspot completes; Step 1 of the parent skill detects the convergence section and proceeds.
 
-If `OPENROUTER_API_KEY` is not set, blindspot will fall back to single-model mode and append a warning.
-That is still useful: do not pre-empt the suggestion based on key absence; let blindspot handle it transparently.
+Key absence never pre-empts the suggestion, the fallback keeping a value of its own, but it does change what the suggestion may claim: deferring that disclosure to blindspot would reach the user only after they had typed the command and paid the round trip on a benefit already void.
 
 ## Detect deployment context
 
 Determine the deployment context to calibrate review severity.
+This procedure is shared: the walkthrough skill's Step 1b invokes the same steps when batch triage activates in a mode that never ran this file, against the project root that mode resolved, and skips step 4 when no root resolved.
 Check in order:
 
 1. **Path heuristics** (target's resolved absolute path):
@@ -166,8 +194,11 @@ You must load them explicitly.
 This procedure is shared: walkthrough-only mode invokes the same steps once it has resolved a project root (see the walkthrough skill's Step 2).
 
 1. Resolve the target's **project root**.
-   Claude Code keys auto memory by repository, so every worktree and subdirectory of one repository shares a single memory directory: run `git -C <dir> rev-parse --path-format=absolute --git-common-dir`, where `<dir>` is the target when it is a directory and its parent directory otherwise (`git -C` refuses a file), and take the parent directory of its output.
-   Outside a git repository, walk upward from the target to the first ancestor containing `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`, never above `$HOME`; failing that, use the target directory itself.
+   Claude Code keys auto memory by repository, so every worktree and subdirectory of one repository shares a single memory directory: run `git -C <dir> rev-parse --path-format=absolute --git-common-dir`, and take the parent directory of its output.
+   `<dir>` is the target when it is a directory, and its parent directory when it is a file (`git -C` refuses a file).
+   A glob is neither, and its parent directory is not one either: `dirname` on `audit/**/*.py` yields `audit/**`, which no directory answers, and the command exits `fatal: cannot change to 'audit/**'` (measured 2026-09-20).
+   For a glob, `<dir>` is instead its longest leading run of path segments carrying no `*`, `?` or `[`, so `audit/walkthrough/**/*.py` resolves on `audit/walkthrough` and `audit/**/agents/*.md` on `audit`; a pattern whose first segment already carries one, such as `*.md`, leaves that run empty and resolves on the working directory.
+   Outside a git repository, walk upward from that same `<dir>` to the first ancestor containing `pyproject.toml`, `package.json`, `Cargo.toml`, `go.mod`, or `DESCRIPTION`, never above `$HOME`; failing that, use `<dir>` itself.
 
 2. List the **candidate memory dirs** in this order:
 
@@ -235,8 +266,11 @@ Build the Agent prompt as follows:
 
 You are running the <reviewer> skill. Review: <target>
 
-IMPORTANT — output format: return ONLY the structured findings report. Do not include your intermediate reasoning, file contents you read, or tool call results. Each finding must include: severity tier, file(s) and line(s), description, and suggested fix. Keep each finding to one short paragraph. Maximum 25 findings — if more exist, keep the 25 highest-severity ones and note how many were omitted. Do NOT report findings that contradict the prior calibration rules above — those patterns have been explicitly validated by the project author.
+IMPORTANT — output format: return ONLY the structured findings report. Do not include your intermediate reasoning, file contents you read, or tool call results. Each finding must include: severity tier, file(s) and line(s), description, and suggested fix. Keep each finding to one short paragraph. Maximum 25 findings — if more exist, keep the 25 highest-severity ones and note how many were omitted. Do NOT report findings that contradict the prior calibration rules above — those patterns have been explicitly validated by the project author. That exemption stops at security, data integrity, correctness and privacy: report a finding in one of those four categories even when a calibration rule appears to cover it, naming the rule you considered, and let the walkthrough adjudicate it.
 ```
+
+The four categories are the ones Step 4b of `SKILL.md` refuses to write a calibration rule for, and Step 2b refuses to reject a finding on.
+This line is the same rule at the upstream end: a rule suppressing a finding here leaves no verdict, no cross-model check and no line the user can read, where a rejection downstream at least leaves all three.
 
 Launch with `Agent(prompt, description="review <target>")`.
 The walkthrough cannot proceed without the report, and in an interactive session the call returns before the review is done, because Claude Code runs every Agent in the background.
@@ -254,11 +288,18 @@ You are running the <reviewer> skill. Review: <target>
 [same output format instructions as above]
 ```
 
-If the reviewer agent fails or returns an empty result, tell the user and offer to retry or fall back to walkthrough-only mode.
+A reviewer agent that fails and one that returns an empty result are two different outcomes and take two different answers.
+
+**Failed**, meaning crashed, timed out, was interrupted, or returned output no findings report can be read from: nothing reached the conversation, so tell the user and offer a retry at a narrower scope, a single file instead of a directory, or a glob restricted to the changed files.
+Do not offer walkthrough-only mode here: it scans the conversation for a report, and this run left none, which is SKILL.md's Recovery case 1.
+
+**Empty**, meaning the reviewer ran to completion and reported zero findings: that is a report, not a failure.
+Emit the block below and continue; Step 1 reads it, finds no findings and runs its own zero-findings branch, which offers the user an independent check.
+Nothing is retried and nothing falls back.
 
 ## Output
 
-Once the reviewer's report has arrived, emit the following structured block **exactly** (the parent skill parses it), followed by the Agent's report verbatim:
+Once the reviewer's report has arrived, emit the following structured block **exactly**: it carries the values Step 1 and Step 1b read by name, and it marks the handoff that keeps the skill from ending on the review.
 
 ```
 --- ORCHESTRATOR COMPLETE ---
@@ -267,9 +308,10 @@ reviewer: <reviewer name>
 calibrated: <yes|no>
 prior calibration: <the step 6 line of "Load target project memories">
 batch: <--batch|--no-batch|none>
---- REVIEW REPORT ---
-<paste the Agent's returned report here, unmodified>
 --- PROCEED TO STEP 1 ---
 ```
+
+Do not copy the reviewer's report after the block.
+It reached this context when the Agent completed, and this file runs in the walkthrough's own context rather than across a boundary, so a second copy of a report capped at 25 findings duplicates the largest thing in the transcript to tell Step 1 what it can already read where it is.
 
 After emitting the block, do not end your turn and do not add commentary, a summary of the review, or follow-up questions: this file runs inside the walkthrough skill, so continue directly with its Step 1.

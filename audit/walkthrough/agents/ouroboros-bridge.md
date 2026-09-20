@@ -62,7 +62,7 @@ ACTIVE=$(jq -r '.plugins."ouroboros@ouroboros"[0].version // empty' ~/.claude/pl
 ```bash
 CACHE_DIR="$HOME/.claude/plugins/cache/ouroboros/ouroboros/"
 ERR_FILE=$(mktemp) && trap 'rm -f "$ERR_FILE"' EXIT
-OUT=$(ls -d "$CACHE_DIR"*/ 2>"$ERR_FILE" | xargs -r -n1 basename | sort -V)
+OUT=$(ls -d "$CACHE_DIR"*/ 2>"$ERR_FILE" | xargs -r -d '\n' -n1 basename | sort -V)
 ERR=$(cat "$ERR_FILE")
 ```
 
@@ -125,7 +125,7 @@ No deduplication, no rephrasing, no silent skip: that is the "no silent fallback
 **Anomaly ordering** (deterministic, applied by the bridge before returning):
 
 1. By severity: all `error` first, then all `warn`, then all `info`.
-2. Within each severity, by source step in detection order: (a) Active version resolution (step 2; includes the manifest-fallback info from 2b), (b) Version classification row anomaly (step 3 / decision table), (c) Length-≥-2 info (step 5, appended after row resolution), (d) Per-finding anomalies emitted later during Step 2b (L1 failure, claude-only-without-key, L2 errored).
+2. Within each severity, by source step in detection order: (a) Active version resolution (step 2; includes the manifest-fallback info from 2b), (b) Version classification row anomaly (step 3 / decision table), (c) Length-≥-2 info (step 5, appended after row resolution), (d) the once-per-report inert-severity-trigger info of "Level 2: Cross-provider", emitted once the report's tiers are known, (e) Per-finding anomalies emitted later during Step 2b (L1 failure, claude-only-without-key, L2 errored).
    These belong to the per-finding render path, not the detection block, but follow the same severity-first/source-order rule when accumulated.
 
 Render rules for the parent (also restated in SKILL.md):
@@ -187,15 +187,19 @@ Do not silently accept the finding under the general "report and skip" error pol
 
 **Level 2: Cross-provider.** Triggers when: (a) finding is Blocking/Required/Critical, the top tiers of the reviewer vocabularies (Blocking and Required for posit-dev:critical-code-reviewer, Critical for audit:skill-adversary and the blindspot judge), matched case-insensitively, (b) L1 divergence on any severity, (c) the finding carries a `claude-only` blindspot tag (mandatory regardless of severity, see "Blindspot input routing" below), or (d) L1 failed on an Important+ finding (see L1 failure handling above).
 Trigger (a) does not apply to a finding tagged `agreed`.
+Those three literals are the top tiers of the vocabularies this skill has been calibrated against, and reviewers are discovered at runtime, so a report can arrive in a vocabulary holding none of them: `High` and `Major` sit in the canonical Important+ set that fires L1, yet fire no severity trigger here.
+When the report's tiers hold none of the three, say so once rather than letting the gap pass unseen: append an `info` anomaly, `L2 severity trigger inert: this report's tiers (<tiers seen>) hold none of Blocking, Required or Critical; L2 fires on the claude-only bucket, L1 divergence and L1 failure only.`
+Resolving an unknown vocabulary to a top tier is deliberately not attempted, the corpus of installed reviewers showing no such report (measured 2026-09-20 over the five candidates `scan-reviewers.py` returns, each carrying at least one of the three); the anomaly is what would make a first real occurrence visible.
 Requires `OPENROUTER_API_KEY`, and nothing from Ouroboros: run it even when detection reported `available: false`.
 
 L2 asks one non-Claude model, through OpenRouter, whether the finding holds, using `scripts/openrouter-verdict.py`.
 It does not go through `ouroboros_evaluate` with `trigger_consensus`: the Ouroboros plugin starts its MCP server with `--llm-backend claude_code`, whose adapter replaces every non-Anthropic `openrouter/...` voter with the default Claude model, so that consensus is Claude voting under other models' names.
 
-**Model selection.** One external model per finding, both IDs taken from the curated table in `audit/blindspot/agents/cross-model-judge.md` (update them here when that table changes):
-- `openai/gpt-5.6-sol` by default;
-- `google/gemini-3.1-pro-preview` when the input came from `blindspot` and the external model carried from SKILL.md Step 1 (parsed from the report's `### Cross-Model Findings (<model>)` header) is an `openai/` model.
+**Model selection.** One external model per finding, taken from the curated table in `audit/blindspot/agents/cross-model-judge.md`, by family rather than by ID:
+- the table's OpenAI entry by default;
+- its Google entry marked `menu default` instead, the table holding more than one Google row, when the input came from `blindspot` and the external model carried from SKILL.md Step 1 (parsed from the report's `### Cross-Model Findings (<model>)` header) is itself an `openai/` model.
 A `claude-only` finding is one that model did not flag, so asking it again biases the answer.
+No model ID is written here: that table is the single list, and a copy of its IDs drifts the moment either side is edited, which is why this rule names families, stable across an ID bump, instead.
 
 **Call.** Before the first L2 call of the walkthrough, run `date +%s` once and keep its output as `l2_since`, the replay bound that "Generation check (Step 3)" passes to `--since`.
 The claim is the finding's claim as the reviewer stated it; the code section is the code it targets, verbatim.
@@ -206,7 +210,7 @@ The three checked placeholders fail loudly rather than silently when left in pla
 The `<FILE PATH>` label is not checked, since it only annotates the prompt.
 
 Run the block as one Bash call with `timeout: 600000`, and pass `--timeout 580` as below.
-A reasoning model spends minutes on a finding-sized prompt before its first content byte, and the Bash tool's 120 s default coincides exactly with the script's own `--timeout` default of 120 s: the tool kills the call at the instant the script would have reported the timeout, so the exit-1 row of "Error handling" below is unreachable and the failure surfaces with no reason attached.
+Both overrides exist because the defaults collide: a reasoning model spends minutes on a finding-sized prompt before its first content byte, and the Bash tool's 120 s default would coincide exactly with the script's own `--timeout` default of 120 s, the tool killing the call at the instant the script would have reported the timeout, which would leave the exit-1 row of "Error handling" below unreachable and the failure surfacing with no reason attached.
 Keeping the script limit under the Bash limit is what makes the script's `timed out after 580s` JSON the thing you branch on (`audit/blindspot/agents/cross-model-judge.md` sets the same pair for the same reason).
 
 ```bash
@@ -260,7 +264,8 @@ If no bucket tag is present (non-blindspot input), ignore this table and apply t
 
 An L2 verdict is the output of a script run by the model being cross-checked, so nothing in it proves the call reached OpenRouter.
 The generation record does: OpenRouter keeps one per call, keyed by the `gen-...` ID, and answers 404 for an ID it never issued.
-Run this once, at Step 3 before the wrap-up, over every exit-0 L2 result; skip it when there is none.
+Run this once, at Step 3 before the wrap-up, over every exit-0 L2 result that carries a generation ID, and skip it when none does, whether because no L2 result came back at all or because every one came back with a null ID.
+The condition is the count of checkable IDs, not the count of results: the script requires at least one `--check` and exits 2 on an argparse usage message with nothing on stdout (measured 2026-09-20), which the exit-2 rule below would then report as a malformed invocation for results that are simply already counted `unverified`.
 Batching it there costs no wait per finding: a record is published about two minutes after its call (measured 2026-09-19), so a check right after each call would sit through that delay every time.
 
 Pass one `--check` per result, its `generation_id` and its `requested_model` (never `served_model`, which is the verdict's own claim), and `l2_since` as `--since`.
@@ -273,11 +278,16 @@ python3 "$SCRIPT" --since '<L2_SINCE>' --check '<GEN_ID>' '<MODEL>' --check '<GE
 ```
 
 stdout holds a JSON array in `--check` order; each entry carries `status` and what OpenRouter declares for the ID (`model`, `provider`, `total_cost`, `created_at`).
-Exit 2 means a malformed invocation (a placeholder left in place fails the ID or model pattern); report it as below with `L2 generation check malformed: <stderr last line>` for every result.
+The three exits, as the "Level 2: Cross-provider" section above enumerates its own script's:
+- Exit 0: every pair came back `verified`.
+- Exit 1: at least one did not, which is the ordinary partial outcome and not a failure of the check; the JSON is authoritative per result, so read the statuses and never treat this status as the check having failed.
+- Exit 2: the invocation itself was malformed, a placeholder left in place failing the ID or model pattern; report it as below with `L2 generation check malformed: <stderr last line>` for every result.
+
+Each entry's own `status` is what decides that finding's verdict:
 - `verified`: the call happened, on that model, after the walkthrough started.
 - Any other status (`model_mismatch`, `stale`, `not_found`, `error`), or a missing ID: the finding's L2 verdict is `unverified`.
 
-For each `unverified` verdict, emit a per-finding `warn` anomaly with the exact string `L2 verdict unverified: generation <id> <status> (<error>).`, rendered verbatim in the wrap-up next to that finding; for a result with no ID, `<id>` is `none`, `<status>` is `unverified` and `<error>` is `no generation ID`.
+For each `unverified` verdict, emit a per-finding `warn` anomaly with the exact string `L2 verdict unverified: generation <id> <status> (<error>).`, rendered verbatim in the anomaly list under the wrap-up table, keyed by that finding's `#`; for a result with no ID, `<id>` is `none`, `<status>` is `unverified` and `<error>` is `no generation ID`.
 The verdict already drove the finding's decision during Step 2, so the anomaly is what tells the user which decisions rested on an unproven call.
 
 Return the pre-formatted summary for the L2 segment of the Mechanisms block: `generations verified <V>/<N> (total cost <sum of total_cost> USD)`, where `N` counts every exit-0 L2 result, including those with no ID, and the sum covers the `verified` entries only.
@@ -315,8 +325,8 @@ Build `artifact` from actual content, not prose:
 Prefix: "Evaluate ONLY the changes shown in this diff."
 If the diff exceeds ~4000 lines, drop entire per-file diffs (whole `diff --git` blocks) starting from the largest per-file diff, until under the limit; never truncate mid-file.
 After dropping, append a short note listing the omitted files and their line counts.
-Rationale: per-file size is the only signal reliably derivable from `git diff` alone; severity-based dropping is not implementable because the bridge has no contract with the parent for a `finding → file → severity` mapping.
-Trade-off accepted: a single very large fix may be dropped even if Critical; this is preferable to an unimplementable rule that silently degrades to arbitrary truncation.
+Rationale: per-file size is the only signal reliably derivable from `git diff` alone; severity-based dropping is not available as the interface stands, no contract carrying a `finding → file → severity` mapping from the parent to this file, and it is a contract that could be added rather than something impossible.
+Trade-off accepted: a single very large fix may be dropped even if Critical; this is preferable to a rule that names a mapping it is not given and silently degrades to arbitrary truncation.
 **When dropping occurs, the bridge MUST also append a `warn` anomaly to the evaluate result**: `"evaluate ran on truncated diff — dropped {N} file(s) from largest: {filename1} ({lines1}), {filename2} ({lines2}), … . Verdict reflects only the retained portion; review dropped files manually if any are load-bearing."` The parent renders this verbatim in Step 3's Mechanisms block (prefixed with `⚠`) so the audit trail surfaces the limitation rather than hiding it inside the artifact.
 - **Non-code files:** final state of modified sections with context.
 - **Mixed:** combine both.
@@ -328,6 +338,10 @@ Parameters: `session_id` (`walkthrough-<UTC timestamp of the walkthrough start>`
 
 Always pass `trigger_consensus: false`, never omit the parameter.
 Ouroboros consensus runs its voters through the MCP server's LLM backend, and under the plugin's `--llm-backend claude_code` every non-Anthropic voter becomes the default Claude model, so a consensus here adds no cross-provider signal; the walkthrough's cross-provider check is L2 in Step 2b.
+
+**Uninstalled dependency.** When a fix of this walkthrough modified a dependency manifest, Step 2d and the batch post-fix hooks print a lock or install command for the user instead of running it, and nothing here knows whether it was run.
+A Mechanical Verification failure naming a missing or unresolved package is then inconclusive, never a regression of the reviewed changes, and the stage being hard-gating it takes the whole evaluate down with it rather than lowering a score.
+The evaluate still failed, so "Error handling" below still applies and its `⚠ evaluate failed` line still renders: what this rule fixes is the reason it carries, which names the manifest and the command still owed and states that the walkthrough's own changes are not implicated, rather than leaving a missing package to read as a regression they caused.
 
 **Post-filter:** cross-reference flagged issues against diff.
 Discard issues on unmodified lines.
@@ -370,7 +384,8 @@ metadata: {}
 ```
 
 The free-text becomes the `goal` field (the dimension drift measurement weights at 50%); `ontology_schema` and `metadata` are placeholders the validator requires but the drift computation tolerates as minimal.
-Escape only what YAML requires: a block scalar (`|`) with proper indentation handles arbitrary content including colons, quotes, and backticks without escaping.
+Escape only what YAML requires: a block scalar (`|`) with proper indentation carries colons, quotes, backticks, `#`, blank lines and tab-indented lines without escaping, all verified on a parser 2026-09-20.
+It does not carry C0 control characters, NUL and BEL raising a reader error that fails the whole call, so strip them from the resolved free text before wrapping: a commit message or PR body that swallowed terminal output is where they come from.
 Never pass an empty string or the unwrapped free-text to `seed_content`.
 
 Drift score > `DRIFT_WARN_THRESHOLD` → warning in wrap-up.

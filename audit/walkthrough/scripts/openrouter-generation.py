@@ -19,7 +19,11 @@ the call completes (measured 2026-09-19), so a 404 is retried every
 `--interval` seconds until `--deadline`; no lookup starts after it, so a run
 lasts at most `--deadline` plus one `--timeout`. `stale` means the record predates
 `--since`, the time the checked calls were launched: a real ID replayed from an
-earlier call. Exit status is 0 when every pair is `verified`, 1 otherwise, and
+earlier call. `--since` is a local epoch while `created_at` comes from OpenRouter,
+so the bound is realigned on the offset read from the first response's `Date`
+header, leaving `CLOCK_SKEW` to absorb request latency alone; without that header
+the raw local value is used and the comparison keeps whatever clock drift exists.
+Exit status is 0 when every pair is `verified`, 1 otherwise, and
 2 on invalid arguments (the reason goes to stderr, no JSON).
 
 Used by audit/blindspot/SKILL.md and agents/ouroboros-bridge.md.
@@ -36,11 +40,23 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 
 ENDPOINT = "https://openrouter.ai/api/v1/generation"
 GEN_PAT = re.compile(r"^gen-[A-Za-z0-9-]+$")
 MODEL_PAT = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$")
 CLOCK_SKEW = 60
+
+
+def server_epoch(headers):
+    """Epoch seconds OpenRouter reports in its `Date` header, None when unusable."""
+    raw = headers.get("Date") if headers is not None else None
+    if not raw:
+        return None
+    try:
+        return parsedate_to_datetime(raw).timestamp()
+    except (TypeError, ValueError):
+        return None
 
 
 def model_matches(declared, expected):
@@ -83,7 +99,10 @@ def classify(gen_id, expected, data, since):
 
 
 def fetch(gen_id, api_key, timeout, opener):
-    """Return ("found", data), ("missing", reason) or ("failed", reason)."""
+    """Return (outcome, payload, observed), outcome in {found, missing, failed}.
+
+    `observed` is the server epoch the response advertised, or None.
+    """
     url = f"{ENDPOINT}?{urllib.parse.urlencode({'id': gen_id})}"
     request = urllib.request.Request(
         url, method="GET", headers={"Authorization": f"Bearer {api_key}"}
@@ -91,29 +110,34 @@ def fetch(gen_id, api_key, timeout, opener):
     try:
         with opener(request, timeout=timeout) as response:
             raw = response.read()
+            observed = server_epoch(getattr(response, "headers", None))
     except urllib.error.HTTPError as exc:
+        observed = server_epoch(exc.headers)
         if exc.code == 404:
-            return "missing", f"generation {gen_id} not found"
-        return "failed", f"HTTP {exc.code}: {exc.reason}"
+            return "missing", f"generation {gen_id} not found", observed
+        return "failed", f"HTTP {exc.code}: {exc.reason}", observed
     except urllib.error.URLError as exc:
-        return "failed", f"network error: {exc.reason}"
+        return "failed", f"network error: {exc.reason}", None
     except TimeoutError:
-        return "failed", f"timed out after {timeout}s"
+        return "failed", f"timed out after {timeout}s", None
     except (OSError, http.client.HTTPException) as exc:
-        return "failed", f"network error: {exc}"
+        return "failed", f"network error: {exc}", None
     try:
         body = json.loads(raw)
     except ValueError:
-        return "failed", f"response is not JSON: {raw[:200]!r}"
+        return "failed", f"response is not JSON: {raw[:200]!r}", observed
     data = body.get("data") if isinstance(body, dict) else None
     if not isinstance(data, dict):
-        return "failed", "response has no data"
-    return "found", data
+        return "failed", "response has no data", observed
+    return "found", data, observed
 
 
-def verify_all(checks, api_key, *, since, deadline, interval, timeout, opener, clock, sleep):
+def verify_all(
+    checks, api_key, *, since, deadline, interval, timeout, opener, clock, sleep, now=time.time
+):
     results = {}
     last = {}
+    offset = None
     start = clock()
     while True:
         for index, (gen_id, expected) in enumerate(checks):
@@ -122,9 +146,12 @@ def verify_all(checks, api_key, *, since, deadline, interval, timeout, opener, c
             if clock() - start >= deadline:
                 last.setdefault(index, ("failed", "deadline reached before lookup"))
                 continue
-            outcome, payload = fetch(gen_id, api_key, timeout, opener)
+            outcome, payload, observed = fetch(gen_id, api_key, timeout, opener)
+            if offset is None and observed is not None:
+                offset = observed - now()
             if outcome == "found":
-                results[index] = classify(gen_id, expected, payload, since)
+                bound = since if offset is None else since + offset
+                results[index] = classify(gen_id, expected, payload, bound)
             else:
                 last[index] = (outcome, payload)
         elapsed = clock() - start
@@ -191,6 +218,7 @@ def main(argv=None):
             opener=urllib.request.urlopen,
             clock=time.monotonic,
             sleep=time.sleep,
+            now=time.time,
         )
     json.dump(results, sys.stdout, indent=2)
     sys.stdout.write("\n")

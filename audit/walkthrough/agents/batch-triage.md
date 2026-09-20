@@ -15,7 +15,7 @@ You receive the extracted findings list and the deployment context, and hand bac
 
 From the parent skill:
 - **findings**: the full list of extracted findings (from Step 1), each with: number, description, file(s), severity tier (if any), and (when the input came from `blindspot`) a bucket tag: `agreed`, `claude-only`, or `external-only`
-- **deployment context**: personal / internal / production (from orchestrator or user)
+- **deployment context**: personal / internal / production, or `unknown` (from the orchestrator in orchestrator mode, otherwise resolved by SKILL.md Step 1b before it calls this file)
 
 ## 1. Rapid pre-verdict
 
@@ -33,6 +33,9 @@ Classify each finding into one bucket:
 
 **Conservative default:** when in doubt, classify as Manual.
 Batch mode is an accelerator, not a filter.
+
+**On an `unknown` deployment context**, the auto-reject row's "calibrated away by context detection" ground is unavailable: a finding whose only ground for rejection is the context goes to Manual, and the other two grounds, contradicted by the code and obviously inapplicable, still stand on their own.
+Report the unresolved context in the batch summary, so a rejection the context would have carried is visibly absent rather than silently assumed.
 
 **Important+ findings always go to Manual**, regardless of how obvious the fix seems.
 "Important+" matches the same tier set used by SKILL.md Step 2b for the author's defense: any tier whose name signals a required or blocking change, case-insensitive (Important, Required, Blocking, Critical, Major, High).
@@ -55,17 +58,26 @@ It does not relax it: a `claude-only` Suggestion still goes to Manual; an `agree
 Only these mechanical patterns qualify.
 Everything else goes to Manual:
 - Unused imports or variables (removal only)
-- Missing type annotations on function signatures (addition only, no logic change)
+- Missing type annotations on function signatures, only when the reviewer's finding names the exact annotation to add (addition only, no logic change)
 - Typos in strings, comments, or identifiers (exact correction obvious from context)
-- Missing `return` type annotations
+- Missing `return` type annotations, on the same condition
 - Trivial format/lint fixes explicitly flagged by the reviewer (trailing whitespace, missing newline at EOF)
 - Dead code removal when the reviewer explicitly identifies the code as unreachable
+
+The two annotation entries carry that condition and the others do not, because adding an annotation is the only pattern here that invents content rather than removing or correcting what the code already determines.
+Nothing in the walkthrough runs a type checker, and Step 2d verifies by re-reading, so an inferred annotation would be judged by the model that inferred it.
+Spelled out by the reviewer it is as mechanical as the rest; left to inference it goes to Manual, where the finding meets the author's defense, the cross-model checks and the user.
 
 If a finding matches a whitelist pattern but the fix would touch more than one file, it goes to Manual.
 
 ## 2. Present the triage
 
-Show the user: a one-line summary (`Triage: N findings — X auto-fix, Y auto-reject, Z manual`), then three tables (auto-fix: `# | Finding | File | Fix`; auto-reject: `# | Finding | Reason`; manual: `# | Finding | File | Severity | Reason for manual`).
+Show the user: a one-line summary (`Triage: N findings — X auto-fix, Y auto-reject, Z manual`), then three tables (auto-fix: `# | Finding | File | Fix`; auto-reject: `# | Finding | Reason | Calibration`; manual: `# | Finding | File | Severity | Reason for manual`).
+
+The auto-reject table's `Calibration` column reads `rule` when SKILL.md Step 4b would turn that rejection into a lasting calibration rule, and `none` when it would not, an excluded category or a rejection too specific to generalize both reading `none`.
+A rejection reached this table through the rapid pre-verdict, which skips the author's defense and QA and never reaches L1 or L2, so this prompt is the only place the user sees a permanent rule before it is written.
+State that in one line above the prompt rather than leaving the column to speak for itself.
+
 End with `Override? (e.g., "move 3 to manual", "move 2 to auto-fix", or "ok")`.
 Wait for confirmation or overrides, apply them, then proceed.
 
@@ -78,7 +90,9 @@ No code changes.
 After each fix, re-read the modified file + files one level away (same verification as Step 2d in the parent skill).
 If verification fails:
 
-1. Revert the fix immediately.
+1. Revert the fix immediately, by applying its inverse edit: restore the exact text the fix replaced, with the same editing tool that applied it.
+   Never revert with `git checkout`, `git restore`, `git stash` or any other whole-file operation: those discard every uncommitted change in the file, which here means the auto-fixes applied earlier in this same batch and whatever the user already had in the tree, a dirty tree being a case Step 0 tolerates rather than blocks.
+   When the inverse edit cannot be reconstructed, leave the change in place and say so rather than reaching for a git command: a reported failure costs the user one manual revert, a wiped file costs them work the walkthrough never touched.
 2. Move the finding to Manual.
 3. Continue with the next auto-fix.
 
@@ -108,8 +122,8 @@ Warning: package install/lock commands may execute scripts from third-party pack
 ### Ouroboros QA on auto-reject (optional)
 
 If Ouroboros is available, run a QA check on each auto-reject finding: `artifact` = the code section, `quality_bar` = the finding's claim.
-Score >= 0.8 confirms the rejection.
-Below 0.8, move the finding to Manual silently.
+A score at or above `QA_PASS_THRESHOLD` confirms the rejection, and below it the finding moves to Manual silently.
+The threshold is the one `agents/ouroboros-bridge.md` declares, named rather than repeated here: it is calibrated against that file's `MAX_TESTED` and is to be re-validated whenever that is bumped, which a literal copied into this file would quietly survive.
 Report the number of QA-promoted findings in the batch summary if any were moved.
 
 ## 4. Report and hand back
@@ -129,4 +143,4 @@ Hand back to the walkthrough skill's Step 2:
 **Each finding must preserve all input metadata**: index, severity tier, file paths, and (when present) the blindspot bucket tag (`agreed` / `claude-only` / `external-only`).
 The parent skill needs the bucket tag for the Step 3 wrap-up table's Bucket column and for routing decisions in Step 2b.
 - **batch results**: auto-fix and auto-reject outcomes for the wrap-up table (Step 3); also include the bucket tag per finding when present.
-- **batch stats**: counts for the transparency status (auto-fix applied, reverted, auto-reject confirmed, QA-promoted)
+- **batch stats**: counts for Step 3's breakdown by mode and its Mechanisms block (auto-fix applied, reverted, auto-reject confirmed, QA-promoted), never for Step 1's transparency status, which rendered before this file ran

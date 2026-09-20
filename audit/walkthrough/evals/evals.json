@@ -116,6 +116,19 @@
       "prompt": "Je viens de recevoir les retours d'un collègue sur mon code, une quinzaine de remarques. On peut les regarder une par une et corriger au fur et à mesure ?",
       "expected_output": "Should NOT trigger walkthrough. Paraphrase of the listed non-trigger \"passer en revue\" / \"go through one by one\" that the blocklist does not spell out, and `disable-model-invocation: true` blocks model invocation outright. Claude should suggest `/audit:walkthrough`, in French, rather than launch anything.",
       "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "/audit:walkthrough\n\nOn peut passer en revue ces remarques une par une et trier ce qui vaut le coup ?\n\n### Blocking\n\n1. **Race sur le compteur** — `counter.py:18` incrémente sans verrou depuis deux threads.\n\n### Minor\n\n2. **Import inutilisé** — `os` n'est plus utilisé dans `counter.py`.",
+      "expected_output": "Should trigger walkthrough and walk the 2 findings. The message carries three listed non-triggers at once (\"passer en revue\", \"une par une\", \"trier\") alongside an explicit `/audit:walkthrough` opening it; the explicit command outranks the blocklist, which withholds auto-triggering and never a command the user typed. Declining, or answering that the request matches a non-trigger, is the failure this case guards against. Should process the Blocking finding first, in French.",
+      "expectations": [
+        "Response runs the walkthrough rather than declining or suggesting the command back to the user",
+        "Response does NOT claim the request matches a non-trigger phrase",
+        "Response is in French",
+        "Response processes the Blocking finding (race on the counter) before the Minor one",
+        "Response generates an author's defense for the Blocking finding but not for the Minor one"
+      ],
+      "files": []
     }
   ]
 }

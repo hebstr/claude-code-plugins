@@ -3,6 +3,8 @@ import importlib.util
 import io
 import json
 import urllib.error
+from datetime import UTC, datetime
+from email.utils import formatdate
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,8 @@ SCRIPT = Path(__file__).with_name("openrouter-generation.py")
 GEN = "gen-1789848711-DY3K9lDJO3kqDAfH1bPA"
 MODEL = "openai/gpt-5.6-sol"
 SINCE = 1789848700
+SERVER_NOW = 1789848760
+LOCAL_AHEAD = 600
 
 
 def load_module():
@@ -38,9 +42,17 @@ def record(model="openai/gpt-5.6-sol-20260709", created="2026-09-19T20:11:51.206
     }
 
 
+def headers(date=None):
+    message = http.client.HTTPMessage()
+    if date is not None:
+        message["Date"] = date
+    return message
+
+
 class FakeResponse:
-    def __init__(self, payload):
+    def __init__(self, payload, date=None):
         self.payload = payload
+        self.headers = headers(date)
 
     def __enter__(self):
         return self
@@ -59,7 +71,7 @@ def not_found():
     )
 
 
-def scripted_opener(steps, captured=None):
+def scripted_opener(steps, captured=None, date=None):
     steps = list(steps)
 
     def opener(request, timeout):
@@ -68,7 +80,7 @@ def scripted_opener(steps, captured=None):
         step = steps.pop(0) if len(steps) > 1 else steps[0]
         if isinstance(step, BaseException):
             raise step
-        return FakeResponse(json.dumps(step).encode())
+        return FakeResponse(json.dumps(step).encode(), date)
 
     return opener
 
@@ -84,7 +96,17 @@ class Clock:
         self.now += seconds
 
 
-def run(steps, *, expected=MODEL, since=SINCE, deadline=300, interval=15, captured=None):
+def run(
+    steps,
+    *,
+    expected=MODEL,
+    since=SINCE,
+    deadline=300,
+    interval=15,
+    captured=None,
+    date=None,
+    now=None,
+):
     clock = Clock()
     results = og.verify_all(
         [(GEN, expected)],
@@ -93,9 +115,10 @@ def run(steps, *, expected=MODEL, since=SINCE, deadline=300, interval=15, captur
         deadline=deadline,
         interval=interval,
         timeout=20,
-        opener=scripted_opener(steps, captured),
+        opener=scripted_opener(steps, captured, date),
         clock=clock.time,
         sleep=clock.sleep,
+        **({} if now is None else {"now": now}),
     )
     return results[0], clock
 
@@ -199,6 +222,37 @@ def test_generation_older_than_since_is_a_replay():
 def test_since_tolerates_small_clock_skew():
     result, _ = run([record()], since=1789848711 + 30)
     assert result["status"] == "verified"
+
+
+@pytest.mark.parametrize("value", [None, "", "not a date"])
+def test_server_epoch_ignores_an_unusable_date(value):
+    assert og.server_epoch(headers(value)) is None
+
+
+def test_date_header_realigns_since_on_the_server_clock():
+    result, _ = run(
+        [record()],
+        since=SINCE + LOCAL_AHEAD,
+        date=formatdate(SERVER_NOW, usegmt=True),
+        now=lambda: SERVER_NOW + LOCAL_AHEAD,
+    )
+    assert result["status"] == "verified"
+
+
+def test_without_a_date_header_the_local_bound_stands():
+    result, _ = run([record()], since=SINCE + LOCAL_AHEAD, now=lambda: SERVER_NOW + LOCAL_AHEAD)
+    assert result["status"] == "stale"
+
+
+def test_date_header_catches_a_replay_a_lagging_local_clock_would_admit():
+    replay = datetime.fromtimestamp(SINCE - 300, tz=UTC).isoformat()
+    result, _ = run(
+        [record(created=replay)],
+        since=SINCE - LOCAL_AHEAD,
+        date=formatdate(SERVER_NOW, usegmt=True),
+        now=lambda: SERVER_NOW - LOCAL_AHEAD,
+    )
+    assert result["status"] == "stale"
 
 
 def test_transient_error_is_retried_then_verified():
