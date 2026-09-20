@@ -91,7 +91,9 @@ If the script returns zero candidates, tell the user the scan found no reviewer 
 
 **Step 2, validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`).
 If valid, use it as-is and skip steps 3 and 4.
-If invalid, list the scanned candidates back to the user and ask them to pick one.
+If it is absent from the list but resolves to a readable `SKILL.md`, as a filesystem path to an existing `SKILL.md` or to a directory holding one, or as `<plugin>:<skill>` found under an install path in `~/.claude/plugins/installed_plugins.json` or at `~/.claude/skills/<skill>/SKILL.md`, accept it, warn in one line that the scan did not surface it, and skip steps 3 and 4.
+The scan gates on the bare skill name against `review`, `adversary`, `audit`, `critic` and `sweep`, so a reviewer carrying none of them is missed and this path is the only way to reach it.
+Otherwise, list the scanned candidates back to the user and ask them to pick one.
 Do not auto-correct.
 
 **Step 3, detect target type and pick the suggested category.** Apply these rules in order on the resolved target path; first match wins:
@@ -110,10 +112,11 @@ Within the matched category, pick the suggested reviewer using these heuristics 
 
 - `skill-tool` (instructions / skill audit / agent definition / Claude-interpreted artifact): prefer a candidate matching `skill` first, otherwise fall back to any `skill-tool` candidate.
 - `skill-tool` (MCP audit): prefer a candidate matching `mcp` first, otherwise fall back to any `skill-tool` candidate.
-- `code` (project-wide): prefer a candidate matching `full` or `project` first, otherwise fall back to any `code` candidate.
+- `code` (project-wide): prefer a candidate matching `sweep`, `full` or `project` first, otherwise fall back to any `code` candidate.
 - `code` (focused): prefer a candidate matching `critical` or `code-review` first, otherwise fall back to any `code` candidate.
 
-If multiple candidates tie within the preferred sub-rule, pick the one with the shortest `name`.
+If multiple candidates tie within the preferred sub-rule, pick the one with the shortest `name`; the same tie-break governs the `otherwise fall back to any <category> candidate` branch, where every candidate of that category ties by construction.
+Say in the Step 4 rationale when the suggestion came from that fallback, so the user can override before the reviewer launches.
 If the matched category has zero candidates in the scan, fall back to the other category's best match and surface this in the rationale.
 
 **Step 4, present the suggestion and wait.** Show the user the scanned list (grouped by category), the suggested reviewer, and a one-line rationale tying the suggestion to the detected target type.

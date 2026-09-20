@@ -224,11 +224,22 @@ For project types where Agent D uses no skill, show the focus directly: `Agent D
 After presenting the report, ask the user if they want to run `/audit:walkthrough`.
 Do not auto-trigger it.
 
-If the user accepts, invoke the walkthrough skill.
-After the walkthrough completes and fixes have been applied, run the project's test suite automatically (do not ask).
-Truncate test output to the summary line (pass/fail count); only display full output if tests fail.
-For R packages: run `devtools::document()` before `devtools::test()`.
-If no test suite is detected, skip this step and note "No test suite detected, skipping post-walkthrough verification."
+If the user accepts, the walkthrough must be invoked **by the user**, not via the `Skill` tool.
+`audit:walkthrough`'s frontmatter sets `disable-model-invocation: true` (it is an explicit-invocation skill), and the `Skill` tool refuses to launch it with the error `Skill audit:walkthrough cannot be used with Skill tool due to disable-model-invocation`.
+Instead, print the following message and end the sweep cleanly:
+
+```
+Run this command yourself in the prompt:
+
+  /audit:walkthrough
+
+The report above stays in the conversation, so walkthrough-only mode picks it up with no target.
+Once its fixes are applied, verify with: <test command>
+```
+
+Substitute `<test command>` with the project's own (`devtools::document()` then `devtools::test()` for an R package, `uv run pytest` for a Python project, and so on).
+If no test suite is detected, replace that last line with "No test suite detected, so no post-walkthrough verification is available."
+The sweep ends here: it cannot run that verification itself, because the walkthrough now happens in a turn the sweep no longer owns.
 
 ## Important constraints
 

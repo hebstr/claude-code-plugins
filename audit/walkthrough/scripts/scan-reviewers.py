@@ -36,7 +36,7 @@ BLACKLIST = {
     "audit:blindspot",
 }
 
-NAME_PAT = re.compile(r"\b(review|adversary|audit|critic)", re.IGNORECASE)
+NAME_PAT = re.compile(r"\b(review|adversary|audit|critic|sweep)", re.IGNORECASE)
 DESC_PAT = re.compile(
     r"\b(review|audit|critique|find\s+issues|find\s+flaws|adversarial|critic|critical)",
     re.IGNORECASE,
@@ -59,7 +59,8 @@ BRACKETS = (("(", ")"), ("“", "”"), ("«", "»"))
 CONJUNCTION_START = re.compile(r"(or|and|nor)\b")
 CLAUDE_CODE = re.compile(r"\bClaude\s+Code\b", re.IGNORECASE)
 CODE_SIGNALS = re.compile(
-    r"\b(code|PR|pull\s+request|python|R\s|javascript|typescript|SQL)\b",
+    r"\b(codebase|code|PR|pull\s+request|project|repositor(y|ies)|architecture"
+    r"|python|R\s|javascript|typescript|SQL)\b",
     re.IGNORECASE,
 )
 

@@ -566,6 +566,23 @@ def test_is_reviewer_filters(scan, description, expected):
     assert scan.is_reviewer("x-review", scan.clean_description(description)) is expected
 
 
+SWEEP_DESCRIPTION = (
+    "Full project review: detects project type and size, spawns specialist background "
+    "agents with disjoint scopes (architecture, quality, tests, docs), consolidates "
+    "findings into one deduplicated report sorted by severity, then offers an "
+    "interactive walkthrough. Not for: single-file reviews, PR or diff reviews, or "
+    "non-code document reviews (papers, resumes, CVs)."
+)
+
+
+def test_project_wide_reviewer_named_sweep_is_scanned(scan):
+    assert scan.is_reviewer("sweep", scan.clean_description(SWEEP_DESCRIPTION)) is True
+
+
+def test_project_wide_reviewer_named_sweep_classifies_as_code(scan):
+    assert scan.classify(scan.clean_description(SWEEP_DESCRIPTION)) == "code"
+
+
 def test_clean_description_drops_leading_boilerplate(scan):
     description = (
         "User-invocable ONLY via `/audit:x`. Does not auto-trigger on mentions of y.\n"

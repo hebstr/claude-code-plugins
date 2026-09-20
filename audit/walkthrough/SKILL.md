@@ -1,5 +1,6 @@
 ---
 name: walkthrough
+disable-model-invocation: true
 description: >
   User-invocable ONLY via `/audit:walkthrough`.
   Does not auto-trigger on mentions of "review", "review findings", "review report", "walk through", "walkthrough", "go through one by one", "triage", "DEFERRED.md", "revisit deferred", or French equivalents ("revue", "passer en revue", "trier", "reprendre les findings", "revoir les éléments différés").
@@ -18,6 +19,7 @@ description: >
 
   Revisit-deferred mode: invoke with `--revisit-deferred` (no target, no reviewer) to walk through items previously logged in `DEFERRED.md`.
   At the end, the file is rewritten in place: rows resolved during the walkthrough (ACCEPTED, REJECTED, NOTED) are dropped; rows still deferred remain.
+allowed-tools: Read Write Edit Glob Grep Bash Agent AskUserQuestion
 ---
 
 # Review Walkthrough
@@ -393,6 +395,9 @@ State your assessment clearly and assign a preliminary verdict: ACCEPTED, REJECT
 **Routing by verdict: chain 2b → 2c → 2d → 2e without pausing between steps.
 The "do not pause" rule covers routine intra-point transitions only.
 Explicit exceptions (always pause for user input): (i) Step 2e wait after every point regardless of verdict; (ii) Step 2c scope-broadening flag when the fix requires changes beyond the single point (see 2c rules); (iii) Step 2d regression options when verification detects a break (see 2d rules):**
+
+A pause is waiting on the user, so ending the turn to await an Agent's completion notification is not one: the bridge's L1 check needs that yield (see "Ouroboros integration"), and the chain resumes on the notification.
+Never fabricate an Agent's result to keep the chain unbroken.
 - **ACCEPTED** → proceed to 2c (apply the fix), then 2d (verify), then 2e (report and ask to move on).
 - **REJECTED / NOTED** → skip 2c and 2d, go directly to 2e.
 The user can override and request a fix anyway: if they do, apply it without further pushback.
