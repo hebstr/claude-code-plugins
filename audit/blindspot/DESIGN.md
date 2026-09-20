@@ -99,7 +99,7 @@ blindspot/
 ├── agents/
 │   └── cross-model-judge.md    (routeur OpenRouter → modèle externe)
 └── evals/
-    ├── evals.json              (9 cas fonctionnels, schéma skill-creator)
+    ├── evals.json              (13 cas fonctionnels, schéma skill-creator)
     └── trigger_eval.json       (20 queries triggering, format run_loop.py)
 ```
 

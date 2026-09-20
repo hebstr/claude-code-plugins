@@ -4,12 +4,12 @@
     {
       "id": 1,
       "prompt": "/audit:blindspot audit/skill-adversary --reviewer audit:skill-adversary",
-      "expected_output": "Detect model circularity (Claude-authored target, no filesystem overlap with the installed reviewer). Attempt OpenRouter cross-model judge if OPENROUTER_API_KEY is set, fallback with warning if not. Report includes circularity assessment and transparency block.",
+      "expected_output": "Detect model circularity (Claude-authored target, no filesystem overlap with the installed reviewer). Attempt OpenRouter cross-model judge if OPENROUTER_API_KEY is set, fallback with warning if not. Report includes circularity assessment and transparency block. Assumes a cached plugin install: this repo's marketplace declares source './', so a local or project-scoped install of it loads in place from the checkout, the reviewer then resolves inside the target directory, and the expected verdict becomes Strong circularity with path overlap Yes.",
       "files": [],
       "expectations": [
         "The output includes a Circularity Detection section with verdict 'Model circularity'",
         "The output includes a Transparency section",
-        "Path overlap is reported as No",
+        "Path overlap is reported as No, the reviewer having resolved outside the target directory",
         "Model family overlap is detected and reported as Yes"
       ]
     },
@@ -53,7 +53,7 @@
     {
       "id": 6,
       "prompt": "/audit:skill-adversary ~/.claude/skills/litrev/",
-      "expected_output": "Should NOT trigger. Normal skill-adversary invocation without circularity concern.",
+      "expected_output": "Should NOT trigger. An explicit skill-adversary invocation, and nothing asks for a second model's opinion.",
       "files": [],
       "expectations": [
         "blindspot does NOT trigger"
@@ -84,6 +84,53 @@
       "files": [],
       "expectations": [
         "blindspot does NOT trigger"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "/audit:blindspot audit/skill-adversary --reviewer audit:blindspot",
+      "expected_output": "Refuse at input validation step 4, before Phase 0. The reviewer resolves to blindspot's own directory, which would recurse.",
+      "files": [],
+      "expectations": [
+        "The invocation is refused and the audit does not proceed",
+        "The refusal states that the reviewer resolves to blindspot itself",
+        "The refusal names a different audit skill to pass instead",
+        "No reviewer Agent is spawned and no OpenRouter call is made"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "/audit:blindspot",
+      "expected_output": "Ask the user for the target path. Nothing is assumed, scanned, or spawned.",
+      "files": [],
+      "expectations": [
+        "The user is asked for the target path",
+        "No target is inferred from the working directory or from context",
+        "No reviewer scan, Agent spawn, or OpenRouter call happens before the target is supplied"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "/audit:blindspot audit/sweep --reviewer nonexistent-reviewer-xyz",
+      "expected_output": "The name matches no scanned candidate and resolves to no readable SKILL.md, so the scanned candidates are listed back and the user is asked to pick one.",
+      "files": [],
+      "expectations": [
+        "The scanned candidates are listed back to the user",
+        "The user is asked to pick one",
+        "The name is not auto-corrected to a similar candidate",
+        "No reviewer Agent is spawned on a guessed reviewer"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "/audit:blindspot /etc/ssh",
+      "expected_output": "Refuse with the out-of-scope template at input validation step 3 and stop. The path is neither under ~/.claude/ nor inside the current working directory tree.",
+      "files": [],
+      "expectations": [
+        "The invocation is refused and the audit does not proceed",
+        "The refusal states that the path is outside the allowed scope, naming ~/.claude/ and the current working directory",
+        "The refusal offers both documented remedies: cd into the project root, or pass an absolute path inside ~/.claude/",
+        "No file under the refused path is read"
       ]
     }
   ]
