@@ -9,6 +9,12 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Changed
 
+- `audit`: `blindspot`'s own blindspot audit is adjudicated in full (reviewer `skill-adversary`, external judge `openai/gpt-5.6-sol`, 54 raw findings over 38 points: 33 accepted, 2 rejected, 1 noted, 2 blocked on an unmeasured harness behaviour).
+  Its `evals.json` gains four behavioural cases covering refusal branches that had none, self-invocation through `--reviewer`, a missing target, an unknown reviewer name and a target outside the allowed scope, against a suite where eight of nine entries only asserted that the skill does not trigger.
+  Eval 1 states the install topology its `Path overlap: No` expectation depends on, this repository's marketplace declaring `source: ./`, under which a local or project-scoped install loads in place and resolves the reviewer inside the target.
+  Seven refusal branches remain uncovered and are recorded as deferred.
+- `audit`: `blindspot`'s report records the `AUDIT_FOCUS` string it sent to the external judge, a value derived from the reviewer's prose and never parsed, so a difference between two reports can be told from a difference in the rubric the judge was given.
+- `audit`: `blindspot` declares `allowed-tools: Read Glob Grep Bash Agent`, dropping the `AskUserQuestion` grant that three passages of the skill already forbade, and states at the judge spawn that the agent draws its own `Write` from its Agent grant rather than from this list.
 - `audit`: `blindspot`'s curated OpenRouter models, unchanged since the first release, are replaced by current releases checked against the OpenRouter catalog on 2026-09-15: `google/gemini-3.1-pro-preview` (default), `google/gemini-3.8-flash`, `openai/gpt-5.6-sol`, `deepseek/deepseek-v4-pro-0813`, `qwen/qwen3.8-max-0902` and `x-ai/grok-4.6`.
   Meta leaves the menu, since it has shipped nothing since Llama 4; any other model stays reachable through the custom option, except the Claude-family, router and floating-alias IDs it refuses.
   `moonshotai/kimi-k3` was considered and left out: OpenRouter spreads it across about twenty providers, and a three-line prompt took more than 120 seconds on both test calls.
@@ -34,6 +40,28 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: `walkthrough`'s Step 1 promises only that its reordering separates the high tiers from the low ones, instead of claiming a ranking across reviewers whose tier vocabularies do not map onto one another.
 
 ### Fixed
+
+- `audit`: `blindspot` accepted a `--reviewer` bare suffix matching several scanned candidates and used it as-is, naming none of them.
+  Two plugins shipping a skill directory of the same basename are enough, the scan deduplicating on the full name; Phase 0 then declined to guess and fell through to a manifest walk that matches the suffix at any depth under every install path, answering with whichever plugin was installed first, and that path fed the self-invocation guard, the overlap check and the reviewer the Agent was told to run.
+  Such a suffix is now refused with those candidates listed back, in step 2 and in the step 4 reply alike, and `walkthrough`'s orchestrator takes the same rule, where the ambiguity was settled inside the reviewer subagent with nothing resolving it at all.
+
+- `audit`: `blindspot`'s wrapper-recursion check grepped a resolved `SKILL.md` for `/blindspot` or `audit:blindspot`, and the first alternative matches no real invocation of `/audit:blindspot`, whose spelling does not contain it, only file paths.
+  `audit/walkthrough/SKILL.md` carries one such path in a documentation reference, which was enough to refuse that skill as a reviewer over a defect it does not have, reachable since step 2 accepts a reviewer the scan never surfaced.
+  The check matches `audit:blindspot` alone, case-insensitively, and names as a residual gap the wrappers it cannot catch, the way the path-overlap check already does for a runtime-built path.
+
+- `audit`: the cross-model judge's truncation had no outcome when the files it protects exceeded the 80,000-character cap on their own, the head-truncation exception applying to a single last remaining file and `SKILL.md` plus every `agents/` file being kept in full.
+  Nothing bounds that set, and this skill's own protected files already reach 66,000 characters.
+  The protection now yields rather than the algorithm stalling, head-truncating the file that straddles the cap in selection order, with `SKILL.md` last to go and every drop reported.
+
+- `audit`: the cross-model judge had no branch for a response ignoring the requested `Finding N:` shape, which would have degraded into a report of zero findings.
+  An empty external set is read downstream as the clearest blindspot signal the skill produces, so an unparseable response was liable to be presented as evidence; it is reported as a failure carrying the response's opening characters instead.
+  The template's closing claim that the raw response was preserved is dropped with it: no slot held it and nothing downstream read it.
+
+- `audit`: `blindspot`'s convergence Counts gave `E` a counting rule and `C` none, so a reviewer whose summary total disagrees with its enumeration, as happens whenever it folds one finding into another, was settled by an unstated choice.
+  `C` takes the enumerated findings, the discrepancy is stated under the Counts line, and an atomicity rule now holds findings of distinct root cause apart before matching, the identity `2·A + CO + EO = R` balancing the same whether two findings were merged or one was split because it checks the bucketing against `E` and `C` rather than against the sources.
+
+- `audit`: `blindspot`'s model-family overlap stated that a `No` verdict requires the user to say the target is human-written, without any procedure ever asking.
+  The skill states instead that such a statement counts only unprompted and is never solicited, a closed question putting the cheaper answer in the user's mouth on the one countermeasure the invocation exists to buy, and that the branch serves the two `code` target rows alone, the others satisfying the overlap condition on sight.
 
 - `audit`: `walkthrough`'s Step 4a rewrote `DEFERRED.md` from the rows it had re-judged, so a walkthrough abandoned partway silently deleted every row it had not reached, the one irreversible data loss in the skill.
   Untouched rows are carried over verbatim, and the persistence line states the arithmetic the rewrite must satisfy.
