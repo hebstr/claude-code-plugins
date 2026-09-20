@@ -24,7 +24,8 @@ The agent does not select or default this value; it receives a concrete ID and r
 The parent skill (`audit/blindspot/SKILL.md`) handles model choice via an interactive menu of six curated options plus a custom-input flow.
 The agent receives an already-validated `EXTERNAL_MODEL` and trusts it.
 
-**Curated options** surfaced in the menu, checked against the OpenRouter catalog on 2026-09-15:
+**Curated options**, the authoritative list of IDs for this skill, checked against the OpenRouter catalog on 2026-09-15.
+The menu in `audit/blindspot/SKILL.md` renders these same six and is derived from this table, so change an ID here first; `audit/walkthrough/agents/ouroboros-bridge.md` cites the table by family rather than copying IDs, for the drift reason it states.
 
   | Model ID                        | Family                |
   | ------------------------------- | --------------------- |
@@ -48,7 +49,9 @@ The `jq --arg` parameterization in step 3 below is the canonical injection safeg
 
 Read all relevant files at `TARGET_PATH`:
 
-- For skills: each `SKILL.md` in scope (the target's own, or each `*/SKILL.md` one level down), with all files in its agents/, doc/, templates/, plus the target's root-level docs (`DESIGN.md`, `README*`), which the reviewer reads too
+- For skills: each `SKILL.md` in scope (the target's own, or each `*/SKILL.md` one level down), with all files in its agents/, doc/, templates/ and evals/, plus the target's root-level docs (`DESIGN.md`, `README*`).
+  `evals/` is selected deliberately, which is what makes the truncation order below able to drop it: eval and trigger coverage is skill-audit signal, and the paired reviewer is discovered at runtime, so its own exclusions cannot be mirrored here.
+  A reviewer that excludes a directory this list includes, as `audit:skill-adversary` does for `evals/`, leaves a file-selection asymmetry the report's Transparency block names
 
 - For MCP servers: main server file, tool definitions, config
 
@@ -73,10 +76,10 @@ Construct a prompt for the external model.
 The prompt must include:
 
 ```
-You are an independent auditor reviewing an artifact that was authored by a different AI model
-(Claude, Anthropic). Your role is to find issues that the authoring model might overlook when
-reviewing its own work: blindspots from shared training distribution, self-preference bias,
-and sycophantic agreement.
+You are an independent auditor giving a second opinion on an artifact that a different AI model
+(Claude, Anthropic) is auditing, and that Claude may have authored or been the intended reader of.
+Your role is to find issues a same-family reviewer might overlook: blindspots from shared training
+distribution, self-preference bias, and sycophantic agreement.
 
 ARTIFACT TYPE: <type>
 AUDIT FOCUS: <focus>
@@ -118,15 +121,19 @@ MODEL='<EXTERNAL_MODEL>' # ← replace with the chosen EXTERNAL_MODEL; left as i
 PROMPT_FILE='<PROMPT FILE>' # ← replace with the path written in step 3; left as is, the guard below stops the run
 
 # Single-invocation block, do NOT split across multiple Bash calls (the trap is shell-local).
+set -o pipefail
+
+if ! jq -n --rawfile probe /dev/null '$probe' >/dev/null 2>&1; then
+  echo "ERROR: jq is missing, or present without --rawfile, which the request below needs" >&2
+  exit 1
+fi
+
 if [ ! -f "$PROMPT_FILE" ]; then
   echo "ERROR: prompt file not found: '$PROMPT_FILE'" >&2
   exit 1
 fi
-ERR_FILE=$(mktemp)
-cleanup() { rm -f "$PROMPT_FILE" "$ERR_FILE"; }
-trap cleanup EXIT INT TERM
-
 # Substitution guards (defense in depth: these are inside the bash, not just in prose).
+# They precede the trap: a one-token substitution error must not destroy a prompt file that cost a full read of the target to build.
 if [ -z "$MODEL" ] || printf '%s' "$MODEL" | grep -qE '^<.*>$|^\{\{.*\}\}$'; then
   echo "ERROR: \$MODEL is empty or looks like an unsubstituted placeholder: '$MODEL'" >&2
   exit 1
@@ -139,6 +146,12 @@ if printf '%s' "$MODEL" | grep -qiE '^anthropic/|^openrouter/|^[^/]+/[^/]*claude
   echo "ERROR: \$MODEL is a Claude-family or router ID, which cannot serve as cross-model evidence: '$MODEL'" >&2
   exit 1
 fi
+
+ERR_FILE=$(mktemp)
+cleanup() { rm -f "$PROMPT_FILE" "$ERR_FILE"; }
+trap cleanup EXIT INT TERM
+
+# This last guard stays after the trap on purpose: it only ever fires on a prompt its own test just found empty or placeholder, so the deletion costs nothing.
 if [ ! -s "$PROMPT_FILE" ] || head -c 64 "$PROMPT_FILE" | grep -qE '^[[:space:]]*(\.\.\.|<audit-prompt|\{\{AUDIT_PROMPT)'; then
   echo "ERROR: prompt file is empty or starts with a placeholder marker." >&2
   exit 1
@@ -150,13 +163,15 @@ RESPONSE=$(jq -n --arg model "$MODEL" --rawfile content "$PROMPT_FILE" \
   -H "Authorization: Bearer $OPENROUTER_API_KEY" \
   -H "Content-Type: application/json" \
   -d @- 2>"$ERR_FILE")
-CURL_EXIT=$?
+PIPE_EXIT=$?
 CURL_ERR=$(cat "$ERR_FILE")
 
-if [ "$CURL_EXIT" -ne 0 ]; then
-  echo "ERROR: curl exit=$CURL_EXIT — $CURL_ERR"
+if [ "$PIPE_EXIT" -ne 0 ]; then
+  echo "ERROR: request pipeline exit=$PIPE_EXIT — $CURL_ERR"
 elif [ -z "$RESPONSE" ]; then
   echo "ERROR: empty response from OpenRouter (curl stderr: $CURL_ERR)"
+elif printf '%s' "$RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+  echo "ERROR: OpenRouter rejected the call — $(printf '%s' "$RESPONSE" | jq -r '.error.message // "no message"')"
 else
   echo "$RESPONSE" | jq -r '"GENERATION_ID: \(.id // "none")", "SERVED_MODEL: \(.model // "none")", "PROVIDER: \(.provider // "none")", "FINISH_REASON: \(.choices[0].finish_reason // "none")", "---", (.choices[0].message.content // "ERROR: \(.error.message // "response had no content")")'
 fi
@@ -166,13 +181,17 @@ cleanup  # explicit backstop in case the trap is bypassed (e.g. by a future refa
 
 The four header lines are OpenRouter's own fields: `id` is the `gen-...` generation ID, `model` the model that actually answered, and `finish_reason` is `length` on a response cut off at the token limit, which is the one case where a findings list can look complete while it is not.
 Report such a response as `Failed (truncated at token limit)` rather than as findings.
-Copy them into the output below exactly as printed, never retyped or completed: the parent skill checks the ID against OpenRouter's generation record, and a mistyped ID fails that check the same way a fabricated one does.
+Copy each of their values into the output below exactly as printed, never retyped or completed: the parent skill checks the ID against OpenRouter's generation record, and a mistyped ID fails that check the same way a fabricated one does.
+A value is what follows the colon, never the printed label with it: `**Generation ID:** gen-abc123`, never `**Generation ID:** GENERATION_ID: gen-abc123`, which the parent's check rejects as malformed and reports as an unverified external call.
 
 `-sS` silences the progress bar but preserves stderr; the captured `CURL_ERR` distinguishes DNS, TLS, auth, and timeout failures.
 `curl -sS` does not echo request headers, so the `Authorization` value never enters stderr, but verify before adding `-v` or `--trace*` in any future debug branch, as those flags would leak the API key.
 
 The substitution guards reject a missing prompt file and the placeholder formats most likely to slip through (`<...>`, `{{...}}`, and a leading ellipsis in the prompt file) before any network call is made; silent success on placeholder text is no longer possible.
 The regex format check is duplicated here in bash (in addition to the prose rule above) so a future change that bypasses the prose instructions still cannot pass an arbitrary model ID to OpenRouter.
+
+Each of the three `ERROR:` branches is a failed call, never a finding: report it on the `**Status:**` line as `Failed (<the ERROR line>)`, leave `**Findings:** 0`, and emit no finding text.
+The third branch exists because an HTTP 4xx or 5xx carrying a JSON error body leaves curl at exit 0 with a non-empty response, so without it the rejection lands in the content slot and reads as the external model's first finding.
 
 If the call fails (non-zero exit, empty body, or `.error.message` in response):
 - Report the failure verbatim with the captured `CURL_ERR`
@@ -189,38 +208,51 @@ Parse the external model's response into structured findings.
 ## Cross-Model Audit Results
 
 **External model:** <model ID>
-**Generation ID:** <GENERATION_ID line, or "none">
-**Served model:** <SERVED_MODEL line, or "none">
-**Provider:** <PROVIDER line, or "none">
-**Finish reason:** <FINISH_REASON line, or "none">
+**Generation ID:** <GENERATION_ID value, or "none">
+**Served model:** <SERVED_MODEL value, or "none">
+**Provider:** <PROVIDER value, or "none">
+**Finish reason:** <FINISH_REASON value, or "none">
 **Target:** <TARGET_PATH>
 **Status:** Success / Failed (<error>)
 **Truncated:** no / yes (dropped: <files>)
-**Findings:** <count>
+**Findings:** <number of findings listed below>
 
 <numbered list of findings with severity>
-
----
-Raw response preserved for convergence analysis.
 ```
 
 ## Rules
 
+- `**Findings:**` counts what the report lists.
+  When the external model appended its `N additional minor findings omitted for brevity` line, copy that line verbatim under the findings and leave its number out of the count, so the parent's `E` is the number it can actually read.
+
+- A response carrying no `Finding N:` marker at all did not follow the shape step 2 asked for, and is a failure rather than an empty result: report `**Status:** Failed (response not in the requested finding format)`, leave `**Findings:** 0`, and quote the response's first 500 characters underneath so the parent can see what came back.
+  Never restructure prose into findings, and never let this reach the parent as zero findings: an empty external set is read there as the clearest blindspot signal the skill produces, and a response nobody could parse is not evidence of anything.
+  Step 2 dictates the output shape, so parsing is a split on that marker and a lift of the severity tag already attached, never a judgement about where one finding ends.
+
 - Do not interpret or filter the external model's findings.
   Return them as-is.
+
 - Do not add your own findings.
   You are a router, not a reviewer.
+
 - If OpenRouter returns an error, return the error verbatim.
   Do not retry or fall back.
+
 - Truncate artifact content if it exceeds **80,000 UTF-8 characters** (as counted by `wc -m`,
   applied to the concatenated context block, file path headers and trailing newlines included)
   to stay within external model context limits.
   Character count (not bytes, not tokens) is the
   canonical unit; tokens vary by model and bytes overcount multi-byte Unicode.
   Truncate by dropping whole files, never by cutting one mid-file, and list every dropped file on the `**Truncated:**` line of the output.
-  The one exception is a last remaining file still above the cap: keep its first 80K characters and report it as `yes (head-truncated: <file>)`.
+  One exception is a last remaining file still above the cap: keep its first 80K characters and report it as `yes (head-truncated: <file>)`.
   Drop in this order until the total is under 80K:
   - skills: keep `SKILL.md` and all `agents/` files in full, then drop example fixtures, `evals/`, `templates/`, `doc/`, and the root-level docs last, in that order;
   - MCP servers: keep the tool definitions in full, then drop config files, then the remaining files;
   - codebases and other targets: drop files in the reverse of the order step 1 selected them.
+
+  Every bucket above can exhaust its droppable tiers and stay over the cap, since nothing bounds the size or number of the files it protects.
+  When only protected files remain and the total is still above the cap, the protection yields rather than the algorithm stalling: keep them in the order step 1 selected them, head-truncate the one file that straddles the cap, drop the files entirely past it, and report `yes (head-truncated: <file>; dropped: <files>)`.
+  `SKILL.md`, and the tool definitions for an MCP server, come first in that order, so they are the last content to go.
+  This is the normal ceiling rather than a pathological case: `SKILL.md` plus the `agents/` files of a mature skill are already the bulk of a target, and a skill with no droppable tier at all reaches this state directly.
+
 - Never log, echo, or include the API key in any output.

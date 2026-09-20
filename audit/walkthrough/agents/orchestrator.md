@@ -51,6 +51,9 @@ Do not invent names.
 
 **Step 2: validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`).
 If valid, use it as-is and skip steps 3 and 4.
+A bare suffix matching several candidates names none of them: list those candidates alone, ask for the choice again by full `plugin:skill` name, and do not skip steps 3 and 4 on a guess.
+Two plugins each shipping a skill directory of the same basename is all it takes, the scan deduplicating on the full name and never on the suffix.
+Nothing downstream resolves the ambiguity either: the name is handed to the Agent as `You are running the <reviewer> skill`, which settles it silently and out of sight.
 If it is absent from the list but resolves to a readable `SKILL.md`, as a filesystem path to an existing `SKILL.md` or to a directory holding one, or as `<plugin>:<skill>` found under an install path in `~/.claude/plugins/installed_plugins.json` or at `~/.claude/skills/<skill>/SKILL.md`, accept it, warn in one line that the scan did not surface it, and skip steps 3 and 4.
 The scan gates on the bare skill name against `review`, `adversary`, `audit`, `critic` and `sweep`, so a reviewer carrying none of them is missed and this path is the only way to reach it.
 Otherwise, list the scanned candidates back to the user and ask them to pick one.
@@ -74,6 +77,8 @@ Within the matched category, pick the suggested reviewer using these heuristics 
 If multiple candidates tie within the preferred sub-rule, pick the one with the shortest `name`; the same tie-break governs the `otherwise fall back to any <category> candidate` branch, where every candidate of that category ties by construction.
 Say in the Step 4 rationale when the suggestion came from that fallback, so the user can override before the reviewer launches.
 If the matched category has zero candidates in the scan, fall back to the other category's best match and surface this in the rationale.
+A candidate the scan classified `unknown` is never auto-suggested, since nothing establishes that it reviews this target type, but it is listed under its own `[unknown]` group in Step 4 and can be chosen.
+When every candidate is `unknown`, present them all with no suggestion and ask the user to pick, rather than promoting one into a slot no rule selected.
 
 **Step 4: present the suggestion and wait.** Show the user the scanned list (grouped by category), the suggested reviewer, and a one-line rationale tying the suggestion to the detected target type.
 Present it as plain text, not through `AskUserQuestion`, whose option cap would hide candidates.
@@ -84,11 +89,12 @@ The actual reviewer names come from the scan output, not from this template:
 No --reviewer specified. Scanned reviewers:
   [code]       <names from scan>
   [skill-tool] <names from scan>
+  [unknown]    <names from scan, listed but never suggested>
 Suggested: <chosen name> (<one-line rationale>).
 Pick a reviewer or reply `ok` to accept the suggestion.
 ```
 
-On the user's response: empty input or explicit confirmation → use the suggested reviewer; a candidate name from the scanned list (full or bare suffix) → use that one; anything else → re-prompt once with the same options, then use the suggested reviewer on a second unusable reply.
+On the user's response: empty input or explicit confirmation → use the suggested reviewer; a candidate name from the scanned list (full, or a bare suffix matching exactly one) → use that one; a bare suffix matching several → re-prompt with those candidates alone, as in step 2; anything else → re-prompt once with the same options, then use the suggested reviewer on a second unusable reply.
 
 Every gate of this skill that waits on the user bounds itself that way, re-prompting at most once and then taking its own safe default, and which default is safe differs by gate, which is why they differ: here the suggestion, already shown beside the full scanned list; abort on the adversarial degradation notice of `SKILL.md`, where continuing would silently weaken a check; proceeding without chaining on the circularity nudge below, where the offer is an enrichment and declining costs nothing.
 An unbounded re-prompt is the one shape none of them takes, a user who cannot phrase an answer being left with no way forward.
