@@ -38,6 +38,10 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: `walkthrough`'s description no longer states when the second cross-model check fires, a mechanism `agents/ouroboros-bridge.md` owns and states differently; the description carries trigger language alone, and `orchestrator.md` points at the bridge rather than restating the rule.
   An explicit `/audit:walkthrough` also outranks every phrase in the non-trigger blocklist, so a message that opens on the command is an invocation whatever else it contains; a new eval case covers a command carrying three blocklisted phrases.
 - `audit`: `walkthrough`'s Step 1 promises only that its reordering separates the high tiers from the low ones, instead of claiming a ranking across reviewers whose tier vocabularies do not map onto one another.
+- ci: the `lint` job runs the `prek.toml` hooks through `j178/prek-action` on every file, skipping `prose-lint`, a local system hook whose script lives in the maintainer's dotfiles and is absent from the runner.
+  Its two ruff steps are removed, since the `ruff-check` and `ruff-format` hooks run the same ruff 0.16.7 over every Python file of the repository; pytest stays.
+  Third-party actions are pinned by commit SHA with the release as a trailing comment: `j178/prek-action` v3.0.0, `astral-sh/setup-uv` v10.2.0 (from `v4`) and `softprops/action-gh-release` v3.0.3 (from `v2`); `actions/*` stay on their tags.
+  `.github/dependabot.yml` opens one grouped pull request a month for the GitHub Actions, after a 7-day cooldown; the `prek.toml` hook revisions are still updated by hand.
 
 ### Fixed
 
