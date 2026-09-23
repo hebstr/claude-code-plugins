@@ -44,5 +44,7 @@ jobs:
         with:
           extra-args: --all-files --skip prose-lint
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
       - name: Test Python
         run: uv run --no-project --with pytest pytest -p no:cacheprovider audit/walkthrough/scripts/
