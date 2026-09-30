@@ -23,7 +23,7 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
 - `audit`: `skill-adversary` and `mcp-adversary` set `disable-model-invocation: true`, so the `Skill` tool refuses to launch them and the "User-invocable ONLY" contract their descriptions already stated is enforced at runtime, as it already was for `blindspot`.
   Their eval suites follow: the positive case invokes the slash command, and the natural-language cases that repeated a listed non-trigger verbatim now expect no trigger, which turns them into regression tests for the contract instead of contradictions of it.
-  Six skills still claim explicit invocation without enforcing it (`sweep` and the five `workflow` skills); none of them ships an eval suite to realign.
+  Five skills still claim explicit invocation without enforcing it (`sweep` and the four `workflow` skills); none of them ships an eval suite to realign.
 - `audit`: `walkthrough` sets `disable-model-invocation: true` and declares `allowed-tools`, the last skill of the plugin to state the "User-invocable ONLY" contract without enforcing it and the only one that declared no tools at all.
   Its eight eval prompts open on `/audit:walkthrough` with every behavioural expectation left untouched, and two negative cases are added, an English `DEFERRED.md` cleanup and a French paraphrase of "one by one", so the suite tests the contract instead of contradicting it.
   `sweep`'s Phase 4 follows: it prints the command for the user to run rather than calling the `Skill` tool, which now refuses, on the model its own orchestrator already used for `blindspot`.
@@ -33,7 +33,6 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   The cited line is read in `git show HEAD:<file>`, and a reference whose target vanished is corrected wherever it sits, dated sections included.
   A section the project's own instructions keep as line pointers on purpose follows that project's convention instead, and generated or recorded output (snapshots, extracted test failures, logs) is never edited.
   A pass had renumbered thirteen `file:NNN` references of a `DEFERRED.md` after an insertion shifted them.
-  `continue` follows: where it asked for line numbers in `PLAN.md`, it now asks for function names, test titles and section headings, and never line numbers.
 - `workflow`: `sync` lists files through `git ls-files` in a git repository, so gitignored output (testthat's `_problems/`, build artefacts) no longer enters the dependency map, while a gitignored `.claude/` is still listed; `find` remains the fallback outside git.
 - `audit`: `walkthrough`'s description no longer states when the second cross-model check fires, a mechanism `agents/ouroboros-bridge.md` owns and states differently; the description carries trigger language alone, and `orchestrator.md` points at the bridge rather than restating the rule.
   An explicit `/audit:walkthrough` also outranks every phrase in the non-trigger blocklist, so a message that opens on the command is an invocation whatever else it contains; a new eval case covers a command carrying three blocklisted phrases.

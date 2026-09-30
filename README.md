@@ -42,13 +42,12 @@ See [`audit/README.md`](./audit/README.md) for per-skill details.
 
 ### `workflow`
 
-Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, session handoffs, source-backed recommendations, and documentation layout audits.
+Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, source-backed recommendations, and documentation layout audits.
 
   | Skill                                        | Purpose                                                                                                                                                                                                     |
   | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
   | [`sync`](./workflow/sync/)                   | Scans all project files, identifies those stale relative to recent changes, and updates them. Always runs a cross-repo semantic consistency pass with parallel agents                                       |
   | [`write`](./workflow/write/)                 | Strips AI writing patterns and rewrites prose to read naturally. Routes to a French or English reference per text language. Includes a bilingual review mode (FR-EN parity, typo, faux amis)                |
-  | [`continue`](./workflow/continue/)           | Flushes durable facts to memory, updates `.claude/PLAN.md`, and prints a continuation prompt. No handoff document: PLAN.md and memory are authoritative                                                     |
   | [`reco`](./workflow/reco/)                   | Deep recommendation backed by external sources. Parallel agents pull official docs (WebFetch) and community practice (WebSearch); the skill synthesizes a structured recommendation with verified citations |
   | [`doc-structure`](./workflow/doc-structure/) | Audits documentation layout (CLAUDE.md vs README.md), proposes verbatim migrations of misplaced prose, and updates the CLAUDE.md index                                                                      |
 

@@ -1,6 +1,6 @@
 # workflow
 
-Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, session handoffs, source-backed recommendations, and documentation layout audits.
+Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, source-backed recommendations, and documentation layout audits.
 
 Every skill is **explicit-invocation only**: invoked by typing its slash command, never auto-triggered from natural language.
 
@@ -17,7 +17,6 @@ claude plugin install workflow@hebstr
   | ----------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
   | [`sync`](./sync/)                   | `/workflow:sync`                           | Scans all project files for staleness and updates them. Always runs a cross-repo semantic consistency pass with parallel agents.                                                                             |
   | [`write`](./write/)                 | `/workflow:write`                          | Strips AI writing patterns and rewrites prose to read naturally. Routes to a French or English reference per text language; includes a bilingual review mode (FR-EN parity, typography, false friends).      |
-  | [`continue`](./continue/)           | `/workflow:continue`                       | Flushes durable facts to memory, updates `.claude/PLAN.md`, and prints a continuation prompt. No handoff document: PLAN.md and memory are authoritative.                                                     |
   | [`reco`](./reco/)                   | `/workflow:reco`                           | Deep recommendation backed by external sources. Parallel agents pull official docs (WebFetch) and community practice (WebSearch); the skill synthesizes a structured recommendation with verified citations. |
   | [`doc-structure`](./doc-structure/) | `/workflow:doc-structure [<project-path>]` | Audits documentation layout (CLAUDE.md vs README.md), proposes verbatim migrations of misplaced prose, and updates the CLAUDE.md index.                                                                      |
 
@@ -32,12 +31,6 @@ Then runs a cross-repo semantic scan with parallel agents that check consistency
 
 Detects the source language from the text itself and loads the matching FR or EN reference, then edits in place without commentary.
 Bilingual review mode applies to FR-EN parity work (release notes, mixed-language docs).
-
-### `/workflow:continue`
-
-Writes durable facts from the session to memory, updates `.claude/PLAN.md` (creating it only if absent and the session had a multi-step task), and prints a minimal continuation prompt directly.
-No file is written for the prompt.
-The prompt adapts to what was actually done: it lists written memory files by name and includes PLAN.md references only when PLAN.md was written or updated.
 
 ### `/workflow:reco`
 
@@ -65,9 +58,6 @@ Generated-source files (`README.Rmd`/`README.qmd`) are detected and the source i
 
 # Audit documentation layout for the current project
 /workflow:doc-structure
-
-# At session end or near context limit: flush memory, update PLAN.md, and print a continuation prompt
-/workflow:continue
 ```
 
 ## Requirements
