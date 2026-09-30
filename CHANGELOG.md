@@ -44,6 +44,11 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Fixed
 
+- docs: `audit/README.md`'s requirements table omitted `python3`, which `blindspot`, `walkthrough` and `mcp-adversary` all run, and scoped `jq` to `blindspot` although `walkthrough` reads the installed Ouroboros version with it; both now have a row of their own, as the root `README.md` already had.
+  The `python3` row states what each skill actually does without it, measured rather than assumed: `mcp-adversary` prints `(none found or config unreadable)` and audits as if no server were declared, while in the other two the reviewer scan returns nothing and the L2 verdict call and the generation check exit 127, an exit none of the exit 0/1/2 branches they document covers.
+  Both tables' "degrades gracefully and is reported" preamble names that exception instead of claiming it away.
+  The root `README.md` also credited the jq CLI with fetching the PR body in `walkthrough`, which goes through `gh --jq`, whose own help states the jq utility need not be installed.
+
 - `audit`: `blindspot` accepted a `--reviewer` bare suffix matching several scanned candidates and used it as-is, naming none of them.
   Two plugins shipping a skill directory of the same basename are enough, the scan deduplicating on the full name; Phase 0 then declined to guess and fell through to a manifest walk that matches the suffix at any depth under every install path, answering with whichever plugin was installed first, and that path fed the self-invocation guard, the overlap check and the reviewer the Agent was told to run.
   Such a suffix is now refused with those candidates listed back, in step 2 and in the step 4 reply alike, and `walkthrough`'s orchestrator takes the same rule, where the ambiguity was settled inside the reviewer subagent with nothing resolving it at all.
