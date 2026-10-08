@@ -16,7 +16,7 @@ account's generation record. Exit status is 0 when a verdict was obtained,
 1 when the call or its parsing failed (the JSON carries the reason), and 2 on
 invalid arguments (the reason goes to stderr, no JSON).
 
-Used by agents/ouroboros-bridge.md for cross-model L2.
+Used by agents/cross-model-bridge.md for cross-model L2.
 """
 
 import argparse

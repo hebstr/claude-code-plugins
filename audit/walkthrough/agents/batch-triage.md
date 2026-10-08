@@ -21,7 +21,6 @@ From the parent skill:
 
 For each finding, read the relevant code first and form your own quick assessment (1-2 sentences) before comparing it to the reviewer's claim, same anti-confirmation-bias discipline as SKILL.md Step 2b.
 Do **not** apply the author's defense, it is reserved for the manual walkthrough.
-Do **not** invoke Ouroboros QA.
 
 Classify each finding into one bucket:
 
@@ -75,7 +74,7 @@ If a finding matches a whitelist pattern but the fix would touch more than one f
 Show the user: a one-line summary (`Triage: N findings — X auto-fix, Y auto-reject, Z manual`), then three tables (auto-fix: `# | Finding | File | Fix`; auto-reject: `# | Finding | Reason | Calibration`; manual: `# | Finding | File | Severity | Reason for manual`).
 
 The auto-reject table's `Calibration` column reads `rule` when SKILL.md Step 4b would turn that rejection into a lasting calibration rule, and `none` when it would not, an excluded category or a rejection too specific to generalize both reading `none`.
-A rejection reached this table through the rapid pre-verdict, which skips the author's defense and QA and never reaches L1 or L2, so this prompt is the only place the user sees a permanent rule before it is written.
+A rejection reached this table through the rapid pre-verdict, which skips the author's defense and never reaches L1 or L2, so this prompt is the only place the user sees a permanent rule before it is written.
 State that in one line above the prompt rather than leaving the column to speak for itself.
 
 End with `Override? (e.g., "move 3 to manual", "move 2 to auto-fix", or "ok")`.
@@ -119,13 +118,6 @@ Dependency manifest(s) modified — run manually before continuing:
 Warning: package install/lock commands may execute scripts from third-party packages. Review the diff before running.
 ```
 
-### Ouroboros QA on auto-reject (optional)
-
-If Ouroboros is available, run a QA check on each auto-reject finding: `artifact` = the code section, `quality_bar` = the finding's claim.
-A score at or above `QA_PASS_THRESHOLD` confirms the rejection, and below it the finding moves to Manual silently.
-The threshold is the one `agents/ouroboros-bridge.md` declares, named rather than repeated here: it is calibrated against that file's `MAX_TESTED` and is to be re-validated whenever that is bumped, which a literal copied into this file would quietly survive.
-Report the number of QA-promoted findings in the batch summary if any were moved.
-
 ## 4. Report and hand back
 
 After all batch operations, report:
@@ -143,4 +135,4 @@ Hand back to the walkthrough skill's Step 2:
 **Each finding must preserve all input metadata**: index, severity tier, file paths, and (when present) the blindspot bucket tag (`agreed` / `claude-only` / `external-only`).
 The parent skill needs the bucket tag for the Step 3 wrap-up table's Bucket column and for routing decisions in Step 2b.
 - **batch results**: auto-fix and auto-reject outcomes for the wrap-up table (Step 3); also include the bucket tag per finding when present.
-- **batch stats**: counts for Step 3's breakdown by mode and its Mechanisms block (auto-fix applied, reverted, auto-reject confirmed, QA-promoted), never for Step 1's transparency status, which rendered before this file ran
+- **batch stats**: counts for Step 3's breakdown by mode and its Mechanisms block (auto-fix applied, reverted, auto-reject confirmed), never for Step 1's transparency status, which rendered before this file ran

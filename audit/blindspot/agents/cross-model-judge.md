@@ -25,7 +25,7 @@ The parent skill (`audit/blindspot/SKILL.md`) handles model choice via an intera
 The agent receives an already-validated `EXTERNAL_MODEL` and trusts it.
 
 **Curated options**, the authoritative list of IDs for this skill, checked against the OpenRouter catalog on 2026-09-15.
-The menu in `audit/blindspot/SKILL.md` renders these same six and is derived from this table, so change an ID here first; `audit/walkthrough/agents/ouroboros-bridge.md` cites the table by family rather than copying IDs, for the drift reason it states.
+The menu in `audit/blindspot/SKILL.md` renders these same six and is derived from this table, so change an ID here first; `audit/walkthrough/agents/cross-model-bridge.md` cites the table by family rather than copying IDs, for the drift reason it states.
 
   | Model ID                        | Family                |
   | ------------------------------- | --------------------- |

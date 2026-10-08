@@ -19,7 +19,7 @@ Extract from the user's request:
 - **batch**: `--batch` / `--no-batch` override (optional)
 
 Adversarial cross-provider validation (L2) runs whenever `OPENROUTER_API_KEY` is set: no flag to parse.
-Which findings it fires on is stated in one place only, the "Level 2: Cross-provider" triggers of `agents/ouroboros-bridge.md`, the severity trigger being exempted on the `agreed` bucket and forced on `claude-only`, so a summary that names severities alone is wrong in both directions.
+Which findings it fires on is stated in one place only, the "Level 2: Cross-provider" triggers of `agents/cross-model-bridge.md`, the severity trigger being exempted on the `agreed` bucket and forced on `claude-only`, so a summary that names severities alone is wrong in both directions.
 
 ## Reviewer selection
 

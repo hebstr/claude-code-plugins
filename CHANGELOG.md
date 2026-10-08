@@ -42,12 +42,21 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   Third-party actions are pinned by commit SHA with the release as a trailing comment: `j178/prek-action` v3.0.0, `astral-sh/setup-uv` v10.2.0 (from `v4`, with its cache turned off since the repository has no dependency file to key it on) and `softprops/action-gh-release` v3.0.3 (from `v2`); `actions/*` stay on their tags, which the first grouped Dependabot pull request moved to v7 for `actions/checkout` and `actions/setup-python`.
   `.github/dependabot.yml` opens one grouped pull request a month for the GitHub Actions, after a 7-day cooldown; the `prek.toml` hook revisions are still updated by hand.
 
+### Removed
+
+- `audit`: `walkthrough` no longer depends on the [Ouroboros](https://github.com/Q00/ouroboros) plugin, and no longer offers to install it.
+  Four mechanisms go with it, none replaced: the QA second opinion on an uncertain verdict and on batch auto-rejections, the lateral-think rescue on a stuck point, the final evaluate of Step 3 and the drift check, along with their version floor, their two score thresholds and the recalibration those demanded on every Ouroboros release.
+  What the evaluate had caught twice, the wording of an accepted fix left unpropagated where another file restates it, is covered by two rules the skill already carries: Step 2d verifies the files one reference away, naming the case of a `SKILL.md` body contradicting an agent file, and a satellite file now cites the section that owns a rule instead of summarising it.
+  The cross-model levels are untouched and were never Ouroboros: L1 spawns an `Agent` on an alternate Claude model, L2 calls one non-Claude model through OpenRouter with `scripts/openrouter-verdict.py`, and Step 3 checks each call's generation ID with `scripts/openrouter-generation.py`.
+  `agents/ouroboros-bridge.md` is therefore renamed `agents/cross-model-bridge.md`, keeping those three sections and the per-step error policy, and its `consensus_available` field becomes `l2_available`, a name that matches what it reports.
+  Step 1 loses the Ouroboros version line and the enrichment notice; the blocking notice on a missing `OPENROUTER_API_KEY` is unchanged.
+  Two dependencies fall with the mechanisms: `walkthrough` used `jq` only to read the installed Ouroboros version and `gh` only to fetch a PR body as the drift seed, so it now needs `python3` alone, plus the OpenRouter key for L2.
+
 ### Fixed
 
-- docs: `audit/README.md`'s requirements table omitted `python3`, which `blindspot`, `walkthrough` and `mcp-adversary` all run, and scoped `jq` to `blindspot` although `walkthrough` reads the installed Ouroboros version with it; both now have a row of their own, as the root `README.md` already had.
+- docs: `audit/README.md`'s requirements table omitted `python3`, which `blindspot`, `walkthrough` and `mcp-adversary` all run; it now has a row of its own, as the root `README.md` already had.
   The `python3` row states what each skill actually does without it, measured rather than assumed: `mcp-adversary` prints `(none found or config unreadable)` and audits as if no server were declared, while in the other two the reviewer scan returns nothing and the L2 verdict call and the generation check exit 127, an exit none of the exit 0/1/2 branches they document covers.
   Both tables' "degrades gracefully and is reported" preamble names that exception instead of claiming it away.
-  The root `README.md` also credited the jq CLI with fetching the PR body in `walkthrough`, which goes through `gh --jq`, whose own help states the jq utility need not be installed.
 
 - `audit`: `blindspot` accepted a `--reviewer` bare suffix matching several scanned candidates and used it as-is, naming none of them.
   Two plugins shipping a skill directory of the same basename are enough, the scan deduplicating on the full name; Phase 0 then declined to guess and fell through to a manifest walk that matches the suffix at any depth under every install path, answering with whichever plugin was installed first, and that path fed the self-invocation guard, the overlap check and the reviewer the Agent was told to run.

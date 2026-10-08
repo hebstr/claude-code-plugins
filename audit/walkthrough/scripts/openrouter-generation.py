@@ -26,7 +26,7 @@ the raw local value is used and the comparison keeps whatever clock drift exists
 Exit status is 0 when every pair is `verified`, 1 otherwise, and
 2 on invalid arguments (the reason goes to stderr, no JSON).
 
-Used by audit/blindspot/SKILL.md and agents/ouroboros-bridge.md.
+Used by audit/blindspot/SKILL.md and agents/cross-model-bridge.md.
 """
 
 import argparse

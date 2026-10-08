@@ -26,12 +26,6 @@ Small projects (< 1500 LOC) get 2 or 3 agents by merging docs/tests into archite
 When merging C into B, skill invocations (e.g., R-specific skills) carry over into B's prompt.
 The packaging agent (D) is only added when project-type-specific compliance matters.
 
-### Ouroboros integration (in walkthrough)
-
-`ouroboros_evaluate` must receive actual code (git diff, plus the full content of created files) or file content as artifact, not a prose summary.
-Prose summaries produce misleading scores.
-The walkthrough's Ouroboros bridge (`agents/ouroboros-bridge.md`) enforces this with explicit fallback flagging.
-
 ## Related files
 
 - `${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/SKILL.md`: interactive walkthrough invoked after consolidation
