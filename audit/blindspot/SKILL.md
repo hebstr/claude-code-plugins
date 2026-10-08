@@ -106,6 +106,10 @@ The script returns JSON with `candidates`: each candidate has `name`, `category`
 Plugin skills are named `plugin:skill`, user and project skills keep their bare name, a personal skill shadows a project skill of the same name, and self-references (`audit:walkthrough`, `audit:blindspot`) are excluded.
 If the script returns zero candidates, tell the user the scan found no reviewer skills installed and ask them to specify one manually (e.g. by full skill path).
 
+A scan that did not run is a different outcome, and the two are told apart by the exit status rather than by the candidate count: an exit of zero with well-formed JSON holding an empty `candidates` array is the branch above, while any nonzero exit, or stdout that does not parse as JSON, means no scan happened.
+`python3` absent exits 127 on `python3: command not found`, a path that resolved to no readable file exits 2 on the interpreter's own message, and a killed call exits 128 + the signal.
+Never read an empty stdout as zero candidates: say the scan did not run, quote the last stderr line verbatim, and ask the user to pass `--reviewer <name>` by hand, as the resolution failure above already does.
+
 **Step 2, validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`).
 If valid, use it as-is and skip steps 3 and 4.
 A bare suffix matching several candidates names none of them: list those candidates alone, ask for the choice again by full `plugin:skill` name, and do not skip steps 3 and 4 on a guess.
@@ -407,6 +411,8 @@ python3 "${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/scripts/openrouter-generation.p
 
 stdout holds a one-entry JSON array: `status`, plus what OpenRouter declares for the ID (`model`, `provider`, `total_cost`, `created_at`).
 Exit 2 means a malformed invocation (a mistyped or placeholder ID fails the pattern check): the source is unverified, `<status>` is `malformed` and `<reason>` is the script's last stderr line, verbatim.
+Any other nonzero exit means the script never ran, so stdout holds no JSON and the status is the shell's own: `python3` absent exits 127 on `python3: command not found`, a path that resolved to no readable file exits 2 and is therefore read as a malformed invocation with its stderr line naming the path, and a killed call exits 128 + the signal.
+The source is unverified, `<status>` is `did-not-run` and `<reason>` is `exit <code>: <stderr last line>`, the exit status and the stderr line verbatim.
 - `verified`: the external source stands.
 Phase 2 reports the declared model, provider and cost.
 - Any other status (`model_mismatch`, `stale`, `not_found`, `error`): the external source is unverified, `<status>` is that status verbatim, and `<reason>` quotes the script's own output for it, its `error` string, the `model` the record names against the one requested, or its `created_at`.
@@ -414,7 +420,7 @@ Phase 2 reports the declared model, provider and cost.
 A `model_mismatch` is not by itself evidence of a fabricated ID: OpenRouter's record names the permaslug that served the call, which can expand the date the catalog slug already carries, `deepseek/deepseek-v4-pro-0813` being recorded as `deepseek/deepseek-v4-pro-20260813` (measured 2026-10-08) where an appended date such as `openai/gpt-5.6-sol-20260709` matches.
 The source stays unverified either way, and `<reason>` names which of the two cases the record shows, so the user reads a check too strict for this slug rather than a call that never happened.
 
-Across the four branches `<status>` is a single token and `<reason>` is verbatim from whatever produced the failure, the judge's error, the script's stderr, or the script's JSON, never a paraphrase: paraphrasing `stale` drops the `created_at` that says how stale.
+Across every unverified branch above `<status>` is a single token and `<reason>` is verbatim from whatever produced the failure, the judge's error, the script's stderr, or the script's JSON, never a paraphrase: paraphrasing `stale` drops the `created_at` that says how stale.
 `unverified` is the verdict on the external source and never a value of `<status>`.
 
 An `unverified` source counts as errored under Phase 2's convergence rule, so no convergence analysis is built on it; report with the "If the external call is unverified" template below.

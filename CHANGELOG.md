@@ -59,8 +59,13 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   `blindspot`, the bridge and the script's docstring now also state that a `model_mismatch` or a `not_found` is not by itself evidence of a fabricated ID, the publication delay being erratic rather than the two minutes previously documented.
 
 - docs: `audit/README.md`'s requirements table omitted `python3`, which `blindspot`, `walkthrough` and `mcp-adversary` all run; it now has a row of its own, as the root `README.md` already had.
-  The `python3` row states what each skill actually does without it, measured rather than assumed: `mcp-adversary` prints `(none found or config unreadable)` and audits as if no server were declared, while in the other two the reviewer scan returns nothing and the L2 verdict call and the generation check exit 127, an exit none of the exit 0/1/2 branches they document covers.
-  Both tables' "degrades gracefully and is reported" preamble names that exception instead of claiming it away.
+  The `python3` row states what each skill actually does without it, measured rather than assumed.
+
+- `audit`: every exit status of the three `python3` scripts now resolves to a documented branch, where `walkthrough` and `blindspot` enumerated exits 0, 1 and 2 and left everything else unmapped.
+  A missing interpreter exits 127 (measured 2026-09-30), which the exit tables of `agents/cross-model-bridge.md` and the "Verify the external call" step of `blindspot/SKILL.md` did not cover, so the L2 verdict call and the OpenRouter generation check failed through the exit mapping with no reason attached; `walkthrough`'s blocking degradation notice does not catch it either, firing on an unset `OPENROUTER_API_KEY` alone, so a machine holding the key without `python3` crossed it in silence.
+  Each exit list now ends on a terminal "any other nonzero exit" row, which marks the finding or the external source `unverified` and carries the exit status and the shell's own stderr line verbatim as the reason, covering 127, a killed call and any status a later script version adds rather than one more enumerated code.
+  The reviewer scan gains the branch it lacked in both skills: a nonzero exit, or stdout that does not parse as JSON, is a scan that did not run and asks for `--reviewer` by hand, told apart from the zero-candidate return it was previously read as.
+  Both requirements tables state that degradation instead of publishing the gap.
 
 - `audit`: `blindspot` accepted a `--reviewer` bare suffix matching several scanned candidates and used it as-is, naming none of them.
   Two plugins shipping a skill directory of the same basename are enough, the scan deduplicating on the full name; Phase 0 then declined to guess and fell through to a manifest walk that matches the suffix at any depth under every install path, answering with whichever plugin was installed first, and that path fed the self-invocation guard, the overlap check and the reviewer the Agent was told to run.

@@ -122,11 +122,14 @@ rm -f "$CLAIM_FILE" "$CODE_FILE"
 exit "$rc"
 ```
 
-**Result.** The block exits with the script's own status, so branch on the Bash call's exit status; stdout holds the script's single JSON object: `verdict` (`valid` / `invalid` / null), `rationale`, `requested_model`, `served_model`, `generation_id`, `error`.
+**Result.** The block exits with the script's own status whenever the script ran at all, so branch on the Bash call's exit status; stdout holds the script's single JSON object: `verdict` (`valid` / `invalid` / null), `rationale`, `requested_model`, `served_model`, `generation_id`, `error`.
 Keep `generation_id` with `requested_model` for every exit-0 result: "Generation check (Step 3)" verifies them all before the wrap-up.
 - Exit 0: `valid` means the external model confirms the finding, `invalid` means it rejects it; show the rationale on the finding's L2 line.
 - Exit 1: the call or its parsing failed (missing key, HTTP error, timeout, truncated or non-JSON answer); apply the L2 row of "Error handling" with `error` as the reason.
 - Exit 2: the invocation itself was malformed (stderr carries the reason); apply the same row with `L2 call malformed: <stderr last line>` as the reason (argparse prints its usage banner first and the error last), and do not retry with guessed values.
+- Any other nonzero exit: the script never ran, so stdout holds no JSON and the status is the shell's own.
+`python3` absent exits 127 on `python3: command not found`, a `$SCRIPT` path that is not a readable file exits 2 and is therefore read as the row above, and a killed call exits 128 + the signal.
+Apply the L2 row of "Error handling" with `L2 call did not run (exit <code>): <stderr last line>` as the reason, and do not retry: nothing about the finding caused it.
 
 **Model transparency:** always report the alternate model identity (the one spawned, not the main).
 L1: `Agent (<alternate>)` where `<alternate>` is the family token from the selection table (`sonnet`, `opus`, or `sonnet` for the default branch; Haiku never appears as an alternate).
@@ -176,10 +179,13 @@ python3 "$SCRIPT" --since '<L2_SINCE>' --check '<GEN_ID>' '<MODEL>' --check '<GE
 ```
 
 stdout holds a JSON array in `--check` order; each entry carries `status` and what OpenRouter declares for the ID (`model`, `provider`, `total_cost`, `created_at`).
-The three exits, as the "Level 2: Cross-provider" section above enumerates its own script's:
+The exits, mapped exhaustively as the "Level 2: Cross-provider" section above maps its own script's:
 - Exit 0: every pair came back `verified`.
 - Exit 1: at least one did not, which is the ordinary partial outcome and not a failure of the check; the JSON is authoritative per result, so read the statuses and never treat this status as the check having failed.
 - Exit 2: the invocation itself was malformed, a placeholder left in place failing the ID or model pattern; report it as below with `L2 generation check malformed: <stderr last line>` for every result.
+- Any other nonzero exit: the script never ran, so stdout holds no JSON and the status is the shell's own (`python3` absent exits 127 on `python3: command not found`; a killed call exits 128 + the signal).
+Report it as below with `L2 generation check did not run (exit <code>): <stderr last line>` for every result.
+This block carries no file-existence guard, so an unreadable `$SCRIPT` path exits 2 instead and is read as the row above, its stderr line naming the path.
 
 Each entry's own `status` is what decides that finding's verdict:
 - `verified`: the call happened, on that model, after the walkthrough started.

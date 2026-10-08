@@ -62,7 +62,7 @@ See [`workflow/README.md`](./workflow/README.md) for per-skill details.
 
 **Optional, per feature.** Skills degrade gracefully: a missing dependency disables the affected feature and is reported.
 The rest of the skill runs.
-The one exception is `python3` in `audit:walkthrough` and `audit:blindspot`, whose failure is not reported: see the `python3` row of [`audit/README.md`](./audit/README.md).
+What each skill does without each dependency is in the table of [`audit/README.md`](./audit/README.md).
 
   | Dependency                                                                                                                                 | Used by                                                                                                                               | Unlocks                                                                                                                                                                                                                                                |
   | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                 |

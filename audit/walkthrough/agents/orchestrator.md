@@ -49,6 +49,10 @@ The bare invocation above already puts that text in front of you, so nothing nee
 When the scan produced any stderr, say so when presenting the candidate list, naming what was skipped and that the list may be incomplete, rather than offering it as the full set of installed reviewers.
 Do not invent names.
 
+A scan that did not run is a third outcome, told from the two above by the exit status rather than by the candidate count: an exit of zero with well-formed JSON is one of them, while any nonzero exit, or stdout that does not parse as JSON, means no scan happened.
+`python3` absent exits 127 on `python3: command not found`, a `${CLAUDE_SKILL_DIR}` left unsubstituted or otherwise resolving to no readable file exits 2 on the interpreter's own message, and a killed call exits 128 + the signal.
+Never read an empty stdout as zero candidates: say the scan did not run, quote the last stderr line verbatim, and ask the user to pass `--reviewer <name>` by hand, which is the one input that lets Step 2 proceed without a candidate list.
+
 **Step 2: validate `--reviewer` if provided.** If the user passed `--reviewer <name>`, check that `<name>` is in the scanned candidates list (match by `name` or by its bare suffix after `:`).
 If valid, use it as-is and skip steps 3 and 4.
 A bare suffix matching several candidates names none of them: list those candidates alone, ask for the choice again by full `plugin:skill` name, and do not skip steps 3 and 4 on a guess.
