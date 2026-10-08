@@ -150,6 +150,21 @@ def test_model_matches_ignores_the_variant_suffix(served, requested):
     assert og.model_matches(served, requested) is True
 
 
+@pytest.mark.parametrize(
+    ("served", "requested", "expected"),
+    [
+        ("deepseek/deepseek-v4-pro-20260813", "deepseek/deepseek-v4-pro-0813", True),
+        ("qwen/qwen3.8-max-20260902", "qwen/qwen3.8-max-0902", True),
+        ("deepseek/deepseek-v4-pro-20261120", "deepseek/deepseek-v4-pro-0813", False),
+        ("deepseek/deepseek-v4-pro-20261345", "deepseek/deepseek-v4-pro-1345", False),
+        ("meta/llama-13", "meta/llama-3", False),
+        ("openai/gpt-15", "openai/gpt-5", False),
+    ],
+)
+def test_model_matches_accepts_an_expanded_date_only(served, requested, expected):
+    assert og.model_matches(served, requested) is expected
+
+
 def test_verified_record_reports_what_openrouter_declares():
     captured = []
     result, _ = run([record()], captured=captured)

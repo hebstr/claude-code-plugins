@@ -14,12 +14,25 @@ object per pair, in argument order:
      "created_at": str | null, "error": str | null}
 
 `model` and the fields after it are what OpenRouter declares for the ID, never
-what the caller claimed. A record is only published about two minutes after
-the call completes (measured 2026-09-19), so a 404 is retried every
-`--interval` seconds until `--deadline`; no lookup starts after it, so a run
-lasts at most `--deadline` plus one `--timeout`. `stale` means the record predates
+what the caller claimed. A record is published only after the call completes,
+and the delay is erratic: about two minutes (measured 2026-09-19) against 5 to
+over 35 minutes (measured 2026-10-08), on a 545 s generation and on a 1 s one
+alike, and two calls three minutes apart on one model and one provider
+published out of order. Neither generation time nor the provider predicts it.
+A 404 is retried every `--interval` seconds until
+`--deadline`; no lookup starts after it, so a run lasts at most `--deadline`
+plus one `--timeout`. `--deadline` is best effort and bounds the wait, never
+the delay, so `not_found` can mean not yet published; the ID stays checkable
+later and a second run is the way to tell that from an ID OpenRouter never
+issued. `stale` means the record predates
 `--since`, the time the checked calls were launched: a real ID replayed from an
-earlier call. `--since` is a local epoch while `created_at` comes from OpenRouter,
+earlier call. `model_mismatch` means the record names another model: the
+permaslug OpenRouter serves counts as the same model when it appends a date to
+the requested slug (`openai/gpt-5.6-sol-20260709`) or expands the slug's own
+`MMDD` into `YYYYMMDD` (`deepseek/deepseek-v4-pro-0813` served as
+`deepseek/deepseek-v4-pro-20260813`), and never when the date differs or the
+trailing number names a sibling model.
+`--since` is a local epoch while `created_at` comes from OpenRouter,
 so the bound is realigned on the offset read from the first response's `Date`
 header, leaving `CLOCK_SKEW` to absorb request latency alone; without that header
 the raw local value is used and the comparison keeps whatever clock drift exists.
@@ -59,9 +72,26 @@ def server_epoch(headers):
         return None
 
 
+def expands_a_dated_slug(declared, expected):
+    """True when `declared` is `expected` with its final `MMDD` token expanded to `YYYYMMDD`."""
+    declared_stem, _, declared_date = declared.rpartition("-")
+    expected_stem, _, expected_date = expected.rpartition("-")
+    if not declared_stem or declared_stem != expected_stem:
+        return False
+    if len(declared_date) != 8 or len(expected_date) != 4:
+        return False
+    try:
+        datetime.strptime(declared_date, "%Y%m%d")
+    except ValueError:
+        return False
+    return declared_date[-4:] == expected_date
+
+
 def model_matches(declared, expected):
     declared, expected = declared.split(":")[0], expected.split(":")[0]
-    return declared == expected or declared.startswith(f"{expected}-")
+    if declared == expected or declared.startswith(f"{expected}-"):
+        return True
+    return expands_a_dated_slug(declared, expected)
 
 
 def make_result(gen_id, expected, status, *, data=None, error=None):

@@ -397,7 +397,9 @@ When that file is missing, the source is unverified, `<status>` is `no-bound` an
 Never re-derive the bound with a fresh `date +%s`: it would sit after every genuine record and return `stale` on a real call, reporting a success as unproven.
 When the ID line reads `none`, skip the script: the external source is unverified, `<status>` is `no-id` and `<reason>` is `the judge reported no generation ID`.
 The script sits in the walkthrough skill, resolved as for `scan-reviewers.py` in "Reviewer selection" (the same fallback applies when `$CLAUDE_PLUGIN_ROOT` is unset).
-Run it as one Bash call with `timeout: 600000`: OpenRouter publishes a record about two minutes after the call (measured 2026-09-19), and the script retries a missing one every 15 s for up to 300 s.
+Run it as one Bash call with `timeout: 600000`: the script retries a missing record every 15 s for up to 300 s.
+OpenRouter's publication delay is erratic: about two minutes (measured 2026-09-19) against 5 to over 35 minutes (measured 2026-10-08), on a 545 s generation and on a 1 s one alike, and two calls three minutes apart on one model and one provider published out of order, so neither generation time nor the provider predicts it.
+Those 300 s therefore bound the wait and never the delay, so a `not_found` can mean not yet published; the Bash tool's own 600 s ceiling rules out waiting the delay out in band, and the ID stays checkable by a later run.
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/scripts/openrouter-generation.py" --since '<JUDGE_SINCE>' --check '<GEN_ID>' '<MODEL>'
@@ -408,6 +410,9 @@ Exit 2 means a malformed invocation (a mistyped or placeholder ID fails the patt
 - `verified`: the external source stands.
 Phase 2 reports the declared model, provider and cost.
 - Any other status (`model_mismatch`, `stale`, `not_found`, `error`): the external source is unverified, `<status>` is that status verbatim, and `<reason>` quotes the script's own output for it, its `error` string, the `model` the record names against the one requested, or its `created_at`.
+
+A `model_mismatch` is not by itself evidence of a fabricated ID: OpenRouter's record names the permaslug that served the call, which can expand the date the catalog slug already carries, `deepseek/deepseek-v4-pro-0813` being recorded as `deepseek/deepseek-v4-pro-20260813` (measured 2026-10-08) where an appended date such as `openai/gpt-5.6-sol-20260709` matches.
+The source stays unverified either way, and `<reason>` names which of the two cases the record shows, so the user reads a check too strict for this slug rather than a call that never happened.
 
 Across the four branches `<status>` is a single token and `<reason>` is verbatim from whatever produced the failure, the judge's error, the script's stderr, or the script's JSON, never a paraphrase: paraphrasing `stale` drops the `created_at` that says how stale.
 `unverified` is the verdict on the external source and never a value of `<status>`.
