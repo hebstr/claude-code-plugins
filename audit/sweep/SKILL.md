@@ -53,7 +53,7 @@ Count lines of code in source files (exclude vendored dependencies, lock files, 
 Use a quick heuristic:
 
 ```bash
-find <path> -type f \( -name '*.R' -o -name '*.Rmd' -o -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.vue' -o -name '*.rs' -o -name '*.go' -o -name '*.qmd' -o -name '*.typ' \) ! -path '*/node_modules/*' ! -path '*/renv/*' ! -path '*/venv/*' ! -path '*/.venv/*' ! -path '*/vendor/*' | xargs wc -l 2>/dev/null | tail -1
+find <path> -type f \( -name '*.R' -o -name '*.Rmd' -o -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.vue' -o -name '*.rs' -o -name '*.go' -o -name '*.qmd' -o -name '*.typ' \) ! -path '*/node_modules/*' ! -path '*/renv/*' ! -path '*/venv/*' ! -path '*/.venv/*' ! -path '*/vendor/*' -print0 | xargs -0 wc -l 2>/dev/null | tail -1
 ```
 
 Classify:
@@ -65,7 +65,14 @@ Classify:
 
 Run steps 1 to 4 of the **Load target project memories** procedure, plus the status line of its step 6, in the sibling `walkthrough` skill (`../walkthrough/agents/orchestrator.md` from this skill's base directory), with the working directory as the target.
 It resolves the memory directory from `autoMemoryDirectory`, the harness memory directory of the repository (following a redirect stub), then `~/.claude/memory/`, and reads the `feedback_review_severity*.md` there and in the project's own `.claude/memory/` that its scope filter keeps for this project; they contain calibration rules for known false positive patterns (e.g., R idioms not to flag).
-This content will be injected into every agent prompt as "Known false positive patterns, do not flag these".
+This content will be injected into every agent prompt as "Known false positive patterns, do not flag these", followed by the exemption the sibling `walkthrough` orchestrator carries: the suppression stops at security, data integrity, correctness and privacy, where an agent reports the finding anyway, naming the calibration rule it considered.
+
+#### Circularity check (blindspot suggestion)
+
+Run the **Circularity check (blindspot suggestion)** section of the sibling `walkthrough` skill (`../walkthrough/agents/orchestrator.md` from this skill's base directory) against the resolved target, with its key test, its two nudges and its bounded response handling unchanged, and with one trigger added: a sweep target is a project root rather than a file, so a `SKILL.md` or a `.claude-plugin/marketplace.json` anywhere under it matches, where that section's own triggers reach only a target that is a `SKILL.md` or holds one at its top level.
+It applies here for the same reason it applies there, and for one this skill adds: a sweep detects its own target and launches four agents on it, so a project that is itself a Claude-interpreted artifact (a skill or plugin repository, anything under `~/.claude/`) is reviewed by Claude's own priors four times over before the user has named any reviewer.
+A sibling reviewer invoked directly, `audit:skill-adversary` or `audit:mcp-adversary`, carries no such check by design: its target is one the user has just chosen.
+Proceed to the report below on anything other than an explicit yes.
 
 #### Report to user
 
@@ -139,7 +146,7 @@ For all other rows, the column describes the focus areas to include directly in 
 Each agent prompt must include:
 - The project path
 - Its specific **scope** (what to look at) and **exclusions** (what to ignore)
-- Calibration memory content if found in Phase 0 (as "Known false positive patterns, do not flag these: ...")
+- Calibration memory content if found in Phase 0 (as "Known false positive patterns, do not flag these: ..."), closed by its exemption: "That exemption stops at security, data integrity, correctness and privacy: report a finding in one of those four categories even when a calibration rule appears to cover it, naming the rule you considered."
 - Instruction to output findings as a numbered list with: file path, line number, description, suggested fix, severity (Blocking / Required / Suggestion).
 For project-wide findings with no specific file, use "Project-wide" as file path and omit line number.
 - Instruction to be specific and actionable: no vague "could be improved" without saying how

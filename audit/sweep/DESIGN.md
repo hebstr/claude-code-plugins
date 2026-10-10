@@ -14,6 +14,13 @@ Agent B (Explore/haiku) is the one most prone to scope creep into docs/tests ter
 Phase 0 runs the walkthrough orchestrator's shared loader, which globs `feedback_review_severity*.md` in the first candidate memory directory holding any: `autoMemoryDirectory`, the harness memory directory of the repository (following a `Canonical index:`/`Canonical location:` redirect stub), then `~/.claude/memory/`, and adds those of the project's own `.claude/memory/`.
 If found, their rules are injected into every agent prompt.
 This prevents agents from re-flagging known false positives (e.g., R idioms: lazy eval, copy-on-modify, NAMESPACE imports, Suggests-guarded packages).
+The injection carries the exemption the sibling `walkthrough` orchestrator carries (2026-10-10): the suppression stops at security, data integrity, correctness and privacy, where an agent reports the finding anyway and names the rule it considered, so a validated pattern cannot suppress a high-stakes finding at the source and leave no verdict behind.
+
+### Circularity check
+
+Phase 0 also runs the orchestrator's `Circularity check (blindspot suggestion)` section (2026-10-10), with one trigger added for a target that is a project root rather than a file: a `SKILL.md` or a `.claude-plugin/marketplace.json` anywhere under it.
+A sweep detects its own target and launches four agents on it, so a project that is itself a Claude-interpreted artifact is read by Claude's own priors four times over before the user has named any reviewer.
+The sibling leaf reviewers (`skill-adversary`, `mcp-adversary`) carry no such check by design: their target is one the user has just chosen.
 
 ### Skill fallback and transparency chain
 

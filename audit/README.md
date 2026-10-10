@@ -29,6 +29,10 @@ claude plugin install audit@hebstr
   `skill-adversary` and `mcp-adversary` are narrow specialists, one per artifact type (Claude Code skills and MCP servers).
 - `blindspot` wraps any of the reviewers above when self-preference risk is credible: Claude reviewing Claude-authored skills, or sister skills in the same marketplace.
   It re-runs the target through a second model family via [OpenRouter](https://openrouter.ai) and compares verdicts to surface what either model missed.
+- **Every skill here is reached by its slash command and by nothing else.**
+  `walkthrough`, `blindspot`, `skill-adversary` and `mcp-adversary` set `disable-model-invocation: true`, which keeps them out of the model's own skill listing as well: measured 2026-10-10 over this plugin's five skills and `workflow`'s four, the four carrying the flag are absent from the listing and the five without it are listed.
+  So describing a symptom in plain language, "I'm worried this review is circular", reaches no skill here: Claude cannot propose, match or launch one it does not see, and the `Skill` tool refuses it by name even when the user typed that name.
+  The two in-session routes are the circularity checks of `walkthrough` and of `sweep`, which fire once one of those two is already running; otherwise the command is the entry point.
 
 ## Common usage
 

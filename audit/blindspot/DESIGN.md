@@ -103,6 +103,18 @@ blindspot/
     └── trigger_eval.json       (20 queries triggering, format run_loop.py)
 ```
 
+#### Couverture d'evals des branches de refus : limite acceptée
+
+Les sections `Input validation` et `Reviewer selection` de `SKILL.md` portent douze branches d'erreur ou de refus, recomptées le 2026-10-10 (onze au 2026-09-20, la branche « scan qui n'a pas tourné » ayant été écrite depuis).
+Quatre ont un cas dans `evals.json` : cible absente (id 11), chemin hors périmètre (id 13), auto-invocation (id 10), reviewer inconnu et non résolvable (id 12).
+Les huit autres n'en ont aucun : wrapper dont le `SKILL.md` grep comme ré-invoquant `audit:blindspot` ; wrapper construisant la commande à l'exécution, signalé comme gap résiduel et non comme passage propre ; scan rendant zéro candidat ; scan qui n'a pas tourné (exit non nul ou stdout non-JSON) ; `--reviewer` en suffixe nu appariant plusieurs candidats ; `--reviewer` absent du scan mais résolvant vers un `SKILL.md` lisible, accepté avec avertissement ; catégorie appariée sans candidat, repli signalé dans la justification ; tous les candidats en `unknown`.
+
+**Décision (2026-10-10) : couverture partielle acceptée, aucun mécanisme de fixtures construit.**
+Deux motifs mesurés.
+`evals.json` suit le schéma `evals/evals.json` de `skill-creator`, dont `references/schemas.md` décrit `expected_output` comme « Human-readable description of success » : un cas ajouté y est gradué par un lecteur, pas exécuté, donc il documente la branche au lieu de la tester.
+Et le suffixe nu ambigu n'est pas exerçable du tout sans deux plugins installés livrant un répertoire de skill de même nom de base, fixture qu'aucun des deux schémas ne sait créer.
+À rouvrir sur un incident réel, c'est-à-dire une de ces huit branches prise en défaut en usage, jamais sur le décompte seul.
+
 ### Scope V2 (extensions possibles)
 
 - Rubric forcing automatique (grille fixe imposée au skill d'audit)
