@@ -207,10 +207,10 @@ Before processing the first finding, report a brief capabilities status block so
 - **Batch mode**: "active (N findings >= 15)" when Step 1b will run, "inactive (N findings < 15)" when it won't, or "forced via --batch" / "disabled via --no-batch" when overridden by the user.
 - **Auto-advance**: "active via --auto (pauses only on the Step 2b routing list)" when the flag was passed, "inactive (approval after every point)" when it was not.
   The flag governs the Step 2 loop only, so this line never qualifies what Step 1 and Step 1b themselves wait on, this status block included: whatever blocks before the loop keeps blocking under `--auto`.
-- **Cross-model validation**: report the active level based on bridge detection results (L1 always on Important+; L2 always on Blocking/Required/Critical (severity trigger skipped on `agreed`) and on `claude-only` blindspot findings when `OPENROUTER_API_KEY` is set, or on L1 divergence or failure: see `agents/cross-model-bridge.md` for details).
+- **Cross-model validation**: report the active level based on bridge detection results (L1 always on Important+; L2 always on Blocking/Required/Critical (severity trigger skipped on `agreed`) and on `claude-only` blindspot findings when `OPENROUTER_API_KEY` is set, before a reject or a downgrade of an `agreed` or `external-only` one, or on L1 divergence or failure: see `agents/cross-model-bridge.md` for details).
 - **Blindspot input** (only when the report came from `blindspot`): report bucket counts and the external model that already pre-validated the agreed bucket.
   Format: "blindspot input: R raw → N agreed + M Claude-only + K external-only (external model: <name>).
-  L2 will skip the severity trigger on the agreed bucket and force on Claude-only."
+  L2 will skip the severity trigger on the agreed bucket, force on Claude-only, and force on an agreed or external-only finding about to be rejected or downgraded."
   When the `**Counts:**` line is absent in the upstream report (older blindspot version, no `R` available), omit the `R raw → ` prefix and fall back to "blindspot input: N agreed / M Claude-only / K external-only ...".
 
 Add a brief glossary of the mechanisms that may fire during the walkthrough, so the user understands the transparency lines they will see later.
@@ -236,7 +236,7 @@ Auto-advance: inactive (approval after every point).
 
 ### Adversarial degradation notice (blocking)
 
-Triggers when `l2_available: false` (i.e., `OPENROUTER_API_KEY` unset or empty in the environment, which is what the bridge's `test -n` returns on).
+Triggers when `l2_available: false` (i.e., `OPENROUTER_API_KEY` unset, empty or blank in the environment, which is what the bridge's whitespace-stripped `-n` test returns on; a non-empty key that is invalid or revoked passes it and surfaces at the first L2 call instead).
 When the key is set, skip this section silently: the standard transparency block already reports "L2 enabled".
 
 When triggered, immediately after the transparency status block and the mechanism glossary, display the following notice in the user's language and **wait for an explicit user response** before proceeding to Step 1b or Step 2.
@@ -386,7 +386,8 @@ Verification tagged 'unverified' (audit meta-tag, distinct from the verdict); th
 - "Cross-model L2: triggered; finding tagged 'claude-only' from blindspot input (mandatory: external model did not flag this, high self-preference risk)."
 - "Cross-model L2: triggered (per standard severity rules: Blocking/Required/Critical); finding tagged 'external-only' from blindspot input.
 Claude tends to under-rate these, so the cross-provider verdict is load-bearing when it fires.
-L2 is NOT forced on external-only by the bucket tag alone."
+L2 is NOT forced on external-only by the bucket tag alone, only before a reject or a downgrade of one."
+- "Cross-model L2: triggered; finding tagged 'external-only' from blindspot input and headed for REJECTED (mandatory: a non-Claude model raised it, so the discard gets a cross-provider check; the same force applies to an 'agreed' finding headed for a reject or a downgrade)."
 - "⚠ L2 mandatory but unavailable: claude-only finding accepted without cross-provider verification" (OPENROUTER_API_KEY not set; bridge no-silent-fallback rule).
 
 This takes one line per mechanism: do not let it bloat the output.
@@ -539,7 +540,7 @@ run L2 severity trigger inert: this report's tiers (Important, minor) hold none 
 A column looks like the obvious place and is the wrong one: an anomaly is rendered verbatim and is free to contain the `|` that Step 4a escapes last precisely because it ends a table cell.
 The list keeps the string intact while still reading beside its row, and nothing renders here when no anomaly was emitted.
 
-**This list is the walkthrough's to order, not the bridge's**, which returned at Step 1 and never saw most of what the list holds: run-level lines first, keyed `run` instead of a number (the bridge's once-per-walkthrough anomalies, four as written, each already printed inline where it was produced), then by finding `#` ascending, then within one finding by severity (`error`, then `warn`, then `info`), then in the order the anomalies were emitted, which is what breaks a tie between two of the same severity.
+**This list is the walkthrough's to order, not the bridge's**, which returned at Step 1 and never saw most of what the list holds: run-level lines first, keyed `run` instead of a number (the bridge's once-per-walkthrough anomalies, five as written, each already printed inline where it was produced), then by finding `#` ascending, then within one finding by severity (`error`, then `warn`, then `info`), then in the order the anomalies were emitted, which is what breaks a tie between two of the same severity.
 It holds every per-finding anomaly whatever produced it, the bridge's three Step 2b strings and its generation-check ones alongside the calibration-rejection `warn` this skill writes itself at Step 2b.
 The bridge's own severity-first/source rule governs the Step 1 block alone.
 
@@ -552,12 +553,13 @@ After the status counts, add a **Mechanisms used** block summarizing what fired 
 For each mechanism, report: count of invocations, and if zero, the reason in parentheses.
 When the input came from `blindspot`, add a `blindspot input` segment first, summarizing bucket distribution and L2 savings/forces from the bucket-aware routing.
 Example:
-> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual) · author's defense 10/11 Important+ · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required/Critical, 1 by L1 divergence; model: openai/gpt-5.6-sol via OpenRouter; generations verified 12/12 (total cost 0.041200 USD))
+> **Mechanisms:** blindspot input 47 raw → 15 agreed + 9 claude-only + 8 external-only (32 unique · external model: google/gemini-3.1-pro-preview · L2 saved on 15 agreed, forced on 9 claude-only) · batch triage 20/32 (12 auto-fix, 8 auto-reject; claude-only and external-only forced to manual, agreed too on the auto-reject path) · author's defense 10/11 Important+ · cross-model L1 6/8 Important+ (Agent sonnet, 1 divergence → escalated to L2) · cross-model L2 12/13 (9 forced by claude-only bucket, 3 on Blocking/Required/Critical, 1 by L1 divergence; model: openai/gpt-5.6-sol via OpenRouter; generations verified 12/12 (total cost 0.041200 USD))
 
 The bridge returns pre-formatted mechanism summaries (cross-model status, generation check).
 Include them verbatim.
 
-**L2 generation check.** Before this block, run the bridge's "Generation check (Step 3)" whenever at least one L2 result carries a generation ID, a failed call that was still billed included, and include its summary in the L2 segment.
+**L2 generation check.** Before this block, run the bridge's "Generation check (Step 3)" whenever the walkthrough holds any L2 result at all, a failed call that was still billed included, and include its summary in the L2 segment.
+Whether the script call inside it happens is the bridge's own condition, on the count of checkable IDs rather than of results, so a run whose results all carry a null ID still yields that section's `no-id` anomalies and its `0/N` summary.
 Every `L2 verdict unverified: …` anomaly it emits goes verbatim into the anomaly list under the wrap-up table, prefixed with `⚠` and keyed by its finding's `#`.
 
 **Degraded L2 mode.** If Step 1's adversarial degradation notice fired and the user accepted to continue (internal flag `degraded_l2_accepted: true`), the L2 segment of the Mechanisms block must surface that choice explicitly rather than show a generic zero-count reason.
@@ -706,9 +708,10 @@ At each trigger point listed below, read the matching section of that file and e
 **Trigger points:**
 - **Step 1 (detection):** call the bridge to probe availability.
 Use the result for the transparency status.
-- **Step 2b (cross-model L1/L2):** run the bridge's cross-model validation on Important+ findings; on any finding, tiered or not, whose author's defense holds and which you are about to downgrade on it; and on any finding tagged `claude-only`, where the bucket forces **L2** regardless of severity while L1 keeps its own band, which the bridge's bucket table states and this line does not restate.
+- **Step 2b (cross-model L1/L2):** run the bridge's cross-model validation on Important+ findings; on any finding, tiered or not, whose author's defense holds and which you are about to downgrade on it; on any finding tagged `claude-only`, where the bucket forces **L2** regardless of severity; and on any finding tagged `agreed` or `external-only` that you are about to reject or downgrade, where the same force applies to that verdict rather than to the tag, a non-Claude model having raised both.
+L1 keeps its own band in all of them, which the bridge's bucket table states and this line does not restate.
 It handles Agent spawning (L1) and the OpenRouter verdict script (L2).
-- **Step 3 (generation check):** when at least one L2 result carries a generation ID, run the bridge's "Generation check (Step 3)" before the Mechanisms block.
+- **Step 3 (generation check):** when the walkthrough holds any L2 result, run the bridge's "Generation check (Step 3)" before the Mechanisms block; that section decides for itself whether its script call happens.
 
 Present all bridge results inline as described in the mechanism transparency format (Step 2b).
 Runtime errors are caught by the bridge: never let an L1 or L2 failure block the walkthrough.

@@ -127,7 +127,7 @@ If none of these apply, skip this section silently and proceed to "Detect deploy
 If a high-signal case matches, test the OpenRouter key first, as blindspot itself does before its own Phase 1, and present the matching nudge (one prompt, then wait for response):
 
 ```bash
-test -n "$OPENROUTER_API_KEY" && echo "openrouter:available" || echo "openrouter:missing"
+test -n "${OPENROUTER_API_KEY//[[:space:]]/}" && echo "openrouter:available" || echo "openrouter:missing"
 ```
 
 On `openrouter:available`:

@@ -43,11 +43,11 @@ When a tier name is ambiguous, err toward Manual.
 
 **Blindspot bucket override.** When findings carry a blindspot bucket tag (i.e., the input came from `blindspot`), apply this rule **before** the auto-fix whitelist:
 
-  | Bucket tag      | Eligible for auto-fix      | Eligible for auto-reject | Rationale                                                                                                                                                                        |
-  | --------------- | -------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | `agreed`        | yes (if matches whitelist) | yes                      | Cross-validated by external model in Phase 1; both auto paths are safe.                                                                                                          |
-  | `claude-only`   | **no, force Manual**       | **no, force Manual**     | The external model did not flag this; high self-preference bias risk. Auto-applying or auto-rejecting would bypass the very check the cross-model judgment was meant to provide. |
-  | `external-only` | **no, force Manual**       | **no, force Manual**     | Claude tends to under-rate findings the external model flagged but Claude missed; the cross-provider verdict is load-bearing and must be reviewed by the user before any action. |
+  | Bucket tag      | Eligible for auto-fix      | Eligible for auto-reject | Rationale                                                                                                                                                                                                                              |
+  | --------------- | -------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                       |
+  | `agreed`        | yes (if matches whitelist) | **no, force Manual**     | Cross-validated by external model in Phase 1, so applying its fix is safe; discarding it is not, and trigger (e) of `agents/cross-model-bridge.md` forces L2 before a reject this step can never reach, having no L1 or L2 of its own. |
+  | `claude-only`   | **no, force Manual**       | **no, force Manual**     | The external model did not flag this; high self-preference bias risk. Auto-applying or auto-rejecting would bypass the very check the cross-model judgment was meant to provide.                                                       |
+  | `external-only` | **no, force Manual**       | **no, force Manual**     | Claude tends to under-rate findings the external model flagged but Claude missed; the cross-provider verdict is load-bearing and must be reviewed by the user before any action.                                                       |
 
 This override takes precedence over the severity rule (Important+ → Manual).
 It does not relax it: a `claude-only` Suggestion still goes to Manual; an `agreed` Blocking finding still goes to Manual via the severity rule.

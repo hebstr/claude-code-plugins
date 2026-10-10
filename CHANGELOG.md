@@ -60,6 +60,24 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Fixed
 
+- `audit`: a cross-provider check is forced before the walkthrough discards a finding a non-Claude model raised, which closes the asymmetry its own bucket routing carried.
+  `claude-only` already forced L2 before an accept; nothing forced it before a reject, so the main model and an intra-family L1, both Claude, could drop an `agreed` or `external-only` finding on their own, which is the self-preference failure the blindspot layer exists to catch.
+  A fifth L2 trigger keys on the verdict rather than on the bucket, the `agreed` row loses its auto-reject eligibility at batch triage, which has no L1 or L2 to honour the trigger with, and both skills' descriptions of the routing follow.
+  The pass that found it was itself adjudicated under the new rule: six of its own verdicts were cross-provider verified before the finding was set aside, one of them re-checked after the fact on a point already walked when the rule was written.
+
+- `audit`: the `walkthrough` bridge's detection test strips whitespace, so a blank `OPENROUTER_API_KEY` no longer reports L2 as available and then fails every call; both scripts read the variable with `.strip()`, and a three-space value was measured taking the available branch.
+  The sentence that justified the test drops its claim to close "the one path" where a degraded run goes unaccepted, and names the residual instead: a non-empty key that is invalid, revoked or out of credit reaches no environment test and surfaces at the first call.
+  The two sibling sites of the same line, in the orchestrator's circularity check and in `blindspot`'s availability check, are aligned with it.
+
+- `audit`: the bridge's replay bound is read, guarded and deleted by its Bash block rather than by the reader's recall, and a missing bound file exits 3 into a mapped `no-bound` row instead of a remembered sentence.
+  The bound is printed before the call, which leaves it on the record once the file is gone, and a `not_found` anomaly now carries it, so the later re-check the file promises can pass the same bound rather than a fresh clock reading that would mark a genuine record `stale`.
+  `blindspot`'s own generation check takes the same shape for the same reason.
+
+- `audit`: the bridge pins what it had left to the session: the L2 circuit breaker's two classes are read off the `HTTP 401` and `HTTP 402` statuses the script prefixes, with every other status named as leaving the breaker alone; "consecutive" means with no exit-0 in between; the per-finding anomaly after the breaker trips has a string of its own, the four it would otherwise borrow each asserting a cause that is false there; and `N`, `<k>` and the comparand of the L1 "both agree" test are each defined once.
+  The L1 prompt's tag suffix reads 16 hex characters, which is what `secrets.token_hex(8)` produces, against the 8 the file claimed while citing that call.
+
+- `audit`: the parent no longer gates the whole generation check on a generation ID existing, which on an all-null-ID run dropped the `no-id` anomalies, the `0/N` summary and the `cost not measured` string the bridge prescribes; the section runs on any L2 result and decides for itself whether its script call happens.
+
 - `audit`: the `walkthrough` bridge's cross-model contract is adjudicated in full against the backlog its own audits left, and the degradations it declared without being able to show are closed.
   The `--revisit-deferred --auto` run entered 63 backlog rows, two of which the batch triage auto-rejected, and walked the other 61 as 45 points, merging ten of them by shared cause.
   The Step 1 key check is a `test -n` rather than a presence test, so an exported but empty key no longer reports L2 as enabled and skips the blocking degradation notice.

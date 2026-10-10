@@ -264,7 +264,7 @@ via OpenRouter.
 ### Detect OpenRouter availability
 
 ```bash
-test -n "$OPENROUTER_API_KEY" && echo "openrouter:available" || echo "openrouter:missing"
+test -n "${OPENROUTER_API_KEY//[[:space:]]/}" && echo "openrouter:available" || echo "openrouter:missing"
 ```
 
 ### If OpenRouter available: Pick external model
@@ -396,21 +396,34 @@ The judge's report comes from a subagent whose tool calls the user does not see,
 OpenRouter's generation record does: it exists only for an ID OpenRouter issued, and it names the model that served the call.
 Run this in the main context once the judge has notified, before Phase 2, unless the judge reported `Failed` (its source already counts as errored, and it is reported with the "If the external call is unverified" template, `<status>` being `failed` and `<reason>` the judge's error).
 
-Take `GEN_ID` from the judge's `**Generation ID:**` line, as the bare `gen-...` token and never a `GENERATION_ID:` label copied along with it, which the script rejects as malformed; `MODEL` is `EXTERNAL_MODEL`, never the judge's `**Served model:**` line, since checking the record against the judge's own claim would only test the judge against itself; `<JUDGE_SINCE>` is the value in `judge-since.txt`, deleted right after it is read so that a later invocation in the same session cannot inherit a bound from this one and check a fresh generation against a stale one.
-When that file is missing, the source is unverified, `<status>` is `no-bound` and `<reason>` is `the audit's start bound was not preserved`.
+Take `GEN_ID` from the judge's `**Generation ID:**` line, as the bare `gen-...` token and never a `GENERATION_ID:` label copied along with it, which the script rejects as malformed; `MODEL` is `EXTERNAL_MODEL`, never the judge's `**Served model:**` line, since checking the record against the judge's own claim would only test the judge against itself; `<JUDGE_SINCE>` is the bound held in `judge-since.txt`, which the block below reads, prints to stderr and then deletes, so that a later invocation in the same session cannot inherit a bound from this one and check a fresh generation against a stale one.
+A missing file exits 3 in the block rather than being remembered here, and the printed bound is what leaves the value on the record once the file is gone.
 Never re-derive the bound with a fresh `date +%s`: it would sit after every genuine record and return `stale` on a real call, reporting a success as unproven.
 When the ID line reads `none`, skip the script: the external source is unverified, `<status>` is `no-id` and `<reason>` is `the judge reported no generation ID`.
 The script sits in the walkthrough skill, resolved as for `scan-reviewers.py` in "Reviewer selection" (the same fallback applies when `$CLAUDE_PLUGIN_ROOT` is unset).
 Run it as one Bash call with `timeout: 600000`: the script retries a missing record every 15 s for up to 300 s.
 OpenRouter's publication delay is erratic: about two minutes (measured 2026-09-19) against 5 to over 35 minutes (measured 2026-10-08), on a 545 s generation and on a 1 s one alike, and two calls three minutes apart on one model and one provider published out of order, so neither generation time nor the provider predicts it.
-Those 300 s therefore bound the wait and never the delay, so a `not_found` can mean not yet published; the Bash tool's own 600 s ceiling rules out waiting the delay out in band, and the ID stays checkable by a later run.
+Those 300 s therefore bound the wait and never the delay, so a `not_found` can mean not yet published; the Bash tool's own 600 s ceiling rules out waiting the delay out in band, and the ID stays checkable by a later run, which needs this run's bound rather than a fresh reading of the clock: a fresh one sits after the record and returns `stale` on a genuine call, so the bound the block printed is what the report carries beside the ID.
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/scripts/openrouter-generation.py" --since '<JUDGE_SINCE>' --check '<GEN_ID>' '<MODEL>'
+SINCE_FILE='<JUDGE_SINCE_FILE>'
+if [ ! -f "$SINCE_FILE" ]; then
+  echo "replay bound file not found" >&2
+  exit 3
+fi
+JUDGE_SINCE=$(cat "$SINCE_FILE")
+echo "replay bound: $JUDGE_SINCE" >&2
+python3 "${CLAUDE_PLUGIN_ROOT}/audit/walkthrough/scripts/openrouter-generation.py" --since "$JUDGE_SINCE" --check '<GEN_ID>' '<MODEL>'
+rc=$?
+rm -f "$SINCE_FILE"
+exit "$rc"
 ```
+
+The bound is printed before the call and never after it, so the stderr last line on a failing exit stays the script's own, which the rules below read verbatim.
 
 stdout holds a one-entry JSON array: `status`, plus what OpenRouter declares for the ID (`model`, `provider`, `total_cost`, `created_at`).
 Exit 2 means a malformed invocation (a mistyped or placeholder ID fails the pattern check): the source is unverified, `<status>` is `malformed` and `<reason>` is the script's last stderr line, verbatim.
+Exit 3 means the block's own guard found no bound file, so the script was never called: the source is unverified, `<status>` is `no-bound` and `<reason>` is `the audit's start bound was not preserved`, which says what happened instead of accusing the record of being stale.
 Any other nonzero exit means the script never ran, so stdout holds no JSON and the status is the shell's own: `python3` absent exits 127 on `python3: command not found`, a path that resolved to no readable file exits 2 and is therefore read as a malformed invocation with its stderr line naming the path, and a killed call exits 128 + the signal.
 The source is unverified, `<status>` is `did-not-run` and `<reason>` is `exit <code>: <stderr last line>`, the exit status and the stderr line verbatim.
 - `verified`: the external source stands.
@@ -530,7 +543,7 @@ It guards the classification pass, not the enumeration feeding it, which is why 
 
 ### Next step
 
-Run `/audit:walkthrough` (no arguments) to process these findings interactively. The walkthrough auto-detects this report's `### Convergence Analysis` section, tags each finding by bucket (agreed / claude-only / external-only), and routes L2 cross-model verification accordingly: severity trigger skipped on agreed (an L1 divergence or failure still escalates), forced on claude-only, standard severity rules on external-only (the bucket tag alone does not force L2; the parent surfaces a "Claude tends to under-rate these" warning).
+Run `/audit:walkthrough` (no arguments) to process these findings interactively. The walkthrough auto-detects this report's `### Convergence Analysis` section, tags each finding by bucket (agreed / claude-only / external-only), and routes L2 cross-model verification accordingly: severity trigger skipped on agreed (an L1 divergence or failure still escalates), forced on claude-only, standard severity rules on external-only, plus a forced call before rejecting or downgrading a finding of either bucket the external model raised, agreed and external-only alike (the bucket tag alone does not force L2; the parent surfaces a "Claude tends to under-rate these" warning).
 ```
 
 When the `### Convergence Analysis` heading was omitted because a source errored, replace that paragraph: there are no buckets to detect, so the walkthrough applies its standard L2 check, on Blocking/Required/Critical findings and on L1 divergences or failures, and the sentence above would promise a routing the report cannot support.
