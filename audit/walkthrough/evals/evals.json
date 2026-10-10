@@ -129,6 +129,19 @@
         "Response generates an author's defense for the Blocking finding but not for the Minor one"
       ],
       "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "/audit:walkthrough --auto\n\nReview report:\n\n### Minor\n\n1. **Unused import** — `os` is imported at the top of `collector.py` and never used.\n2. **Typo in a docstring** — `recieve` instead of `receive` in `fetcher.py`.\n3. **Shadowed builtin** — the local variable named `list` in `handlers.py` shadows the builtin.\n\nGo through them",
+      "expected_output": "Should report auto-advance as active in the transparency status, then adjudicate all 3 findings in one response instead of stopping after the first, each with its own explicit status, and close on the Step 3 wrap-up table. The three findings are Minor, so the author's defense and the cross-model checks do not fire; none of the files exists in the conversation, so each point resolves on a clear verdict and nothing on the Step 2e pause list applies.",
+      "files": [],
+      "expectations": [
+        "Response reports auto-advance as active in its transparency status block",
+        "Response adjudicates all 3 findings in this single response rather than stopping after the first",
+        "Response does NOT ask 'Next point?' or otherwise wait for approval between points",
+        "Response assigns an explicit status label (ACCEPTED, REJECTED, DEFERRED, or NOTED) to each of the 3 findings",
+        "Response ends on the wrap-up summary table with one row per finding"
+      ]
     }
   ]
 }

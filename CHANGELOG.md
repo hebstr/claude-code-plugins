@@ -7,6 +7,12 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ## [Unreleased]
 
+### Added
+
+- `audit`: `walkthrough` takes an opt-in `--auto` flag that lifts the unconditional per-point wait of Step 2e, so a long report is adjudicated without an approval turn between every point.
+  It governs the Step 2 loop only: the walkthrough still pauses on a closed list of conditions (a glob or bare directory to narrow, an uncertain verdict, an author's defense holding with no corroboration available, an unresolved L1/L2 divergence, a mandatory L2 unavailable on a `claude-only` finding, a fix needing a scope broadening, a detected regression) and on anything outside that list, and everything blocking before the loop keeps blocking, the L2 degradation notice and the `Override?` prompt included.
+  There is no `--no-auto`: the default is what the flag's absence already means.
+
 ### Changed
 
 - `audit`: `blindspot`'s own blindspot audit is adjudicated in full (reviewer `skill-adversary`, external judge `openai/gpt-5.6-sol`, 54 raw findings over 38 points: 33 accepted, 2 rejected, 1 noted, 2 blocked on an unmeasured harness behaviour).
