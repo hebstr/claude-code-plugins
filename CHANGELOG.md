@@ -13,6 +13,27 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   It governs the Step 2 loop only: the walkthrough still pauses on a closed list of conditions (a glob or bare directory to narrow, an uncertain verdict, an author's defense holding with no corroboration available, an unresolved L1/L2 divergence, a mandatory L2 unavailable on a `claude-only` finding, a fix needing a scope broadening, a detected regression) and on anything outside that list, and everything blocking before the loop keeps blocking, the L2 degradation notice and the `Override?` prompt included.
   There is no `--no-auto`: the default is what the flag's absence already means.
 
+### Fixed
+
+- `audit`: `sweep` advertised two `r-lib` skills under names the installed set no longer has, `testing-r-packages` and `cran-extrachecks` against `r-testthat` and `r-cran-extrachecks`, so Agents C and D always took their inline fallback on R packages, the one project type the three-layer transparency chain of its `DESIGN.md` was written for, and the Phase 3 template printed a skill name that was never invoked.
+  Both are renamed everywhere, display labels and the two dependency tables of the READMEs included.
+- `audit`: `sweep`'s LOC heuristic undercounted and its zero-source stop killed the Generic fallback.
+  `xargs -0 wc -l | tail -1` reports the last `xargs` batch rather than the project (measured: 8 867 lines against 60 000 on 60 000 files), and is replaced by `xargs -0 cat | wc -l`; the extension list gains the shell, Lua and SQL files the stack actually holds plus the mainstream compiled languages, and `.git/` joins the prune paths.
+  Above all the stop is decoupled from that list: it now fires on a missing or empty directory, and a zero LOC count is declared not to be that case, since a project in an unlisted language is what the Generic row exists for.
+- `audit`: `sweep` inherited the walkthrough orchestrator's circularity section "unchanged", which imported a yes-branch that ends "the orchestrator", prints a `--reviewer` argument a sweep has no value for and sends the user back to `/audit:walkthrough`.
+  The branch is now stated in sweep's own terms and sends a yes to `/audit:blindspot [path] --reviewer audit:sweep`, the subsection moves ahead of the calibration step as the delegated section's own first sentence requires, and a match inside a tree the sweep does not review no longer fires the nudge.
+- `audit`: `sweep`'s disjoint-scope constraint was false as written, three facets (dependency manifests, configuration files, CI) sitting unarbitrated on files several agents read while Phase 2 reads a convergence between two agents as evidence, and content completeness was orphaned between Agent B's exclusion and Agent C's silence.
+  The overlaps are arbitrated at the head of the roster and content completeness is assigned to Agent C.
+- `audit`: `sweep`'s Small-project merge handed `Explore` a facet that needs whole-file reading and a `Skill` call, and Phase 2's scope filter then deleted that same facet, the merge rewriting only Agent B's Scope and Exclude lists and leaving its two scope-policing paragraphs standing.
+  The merged agent now runs as `general-purpose`, those paragraphs are dropped for that run, and the filter tests the scopes as the run defined them.
+- `audit`: `sweep` resolved its `[path]` argument nowhere, so the calibration loader was run against the working directory and a sweep of another path injected that directory's rules into every agent prompt as "do not flag these".
+  Phase 0 resolves `<target>` once and every later mention means it.
+- `audit`: `sweep`'s 7-finding cap truncated silently, Blocking and Required included.
+  Those two tiers are now exempt from it, the cap bites on Suggestions alone, and both the agent prompt and the Summary line carry the omission count.
+- `audit`: smaller `sweep` fixes, each closing a gap this audit measured: the Phase 3 template's four-agent line is declared a format rather than an agent count, `_Flagged by:_` names every agent that flagged a finding (which Phase 2 records and the scope filter now preserves), a dubious finding has a rendering and a counting rule, the Calibration line regains its project-store segment and enumerates its `none` reasons, Quarto and Typst get one Agent D row each, the Large band stops contradicting the Agent D table on Generic projects, the skill list stops being used as the availability test for `audit:walkthrough` (which carries `disable-model-invocation: true` and is therefore never in it), Phase 4 warns when the walkthrough would resolve its project root somewhere other than the swept target, a sweep spawned as blindspot's reviewer gets its one exception clause, and the delegated procedure is cited by what its steps do rather than by their number.
+- `audit`: `cross-model-bridge.md` named `Verify` as the third severity tier of `posit-dev:critical-code-reviewer`; its tiers are `Blocking`, `Required Changes`, `Strong Suggestions`, `Noted`, and `Verify` is a label of that skill's "When Uncertain" prose.
+  The rule that rests on it is narrowed accordingly: `Noted` is the one measured label falling outside both tier sets, `Strong Suggestions` landing in the low set on its own substring.
+
 ### Changed
 
 - `audit`: `blindspot`'s own blindspot audit is adjudicated in full (reviewer `skill-adversary`, external judge `openai/gpt-5.6-sol`, 54 raw findings over 38 points: 33 accepted, 2 rejected, 1 noted, 2 blocked on an unmeasured harness behaviour).
