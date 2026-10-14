@@ -76,7 +76,7 @@ Different targets always trigger a fresh orchestrator run.
 Then read `agents/orchestrator.md` and execute it yourself, in this main context, with the full user request (target + any flags) as its input.
 The orchestrator handles argument parsing, deployment context detection, **target project memory loading**, calibration injection, and reviewer launch.
 Never launch the orchestrator itself as a subagent: its reviewer selection, circularity check and deployment-context fallback all wait on the user, and a subagent has no way to reach them.
-The reason is the missing channel, not a missing tool: the orchestrator asks in plain text precisely because `AskUserQuestion`'s option cap would hide candidates, so a rationale resting on that tool would rest on one it never calls.
+Its reviewer selection asks through `AskUserQuestion`, which Claude Code withholds from every subagent, so that gate would lose the tool it calls on top of the channel it answers on.
 
 The orchestrator launches the reviewer, and only the reviewer, as an **Agent**: not inline in the current context.
 This is critical: the reviewer's work (file reads, sub-agents, bash commands) executes in a separate context window, and only the condensed findings report comes back.

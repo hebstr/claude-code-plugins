@@ -146,9 +146,8 @@ If the matched category has zero candidates in the scan, fall back to the other 
 A candidate the scan classified `unknown` is never auto-suggested, since nothing establishes that it reviews this target type, but it is listed under its own `[unknown]` group in Step 4 and can be chosen.
 When every candidate is `unknown`, present them all with no suggestion and ask the user to pick, rather than promoting one into a slot no rule selected.
 
-**Step 4, present the suggestion and wait.** Show the user the scanned list (grouped by category), the suggested reviewer, and a one-line rationale tying the suggestion to the detected target type.
-Present it as plain text, not through `AskUserQuestion`, whose four-option cap would hide candidates.
-The tool is granted and Phase 1 does use it; the divergence is deliberate, that menu's length being fixed at four while this one's comes from a scan and is bounded by nothing.
+**Step 4, present the suggestion and wait.** Print the scanned list in full first, as plain text grouped by category, then ask the choice through `AskUserQuestion`.
+Printing the list is what keeps a fifth candidate visible, the menu capping at four options, and the `Other` entry is what keeps it reachable: the cap bounds the menu, never the candidate set.
 The format below is illustrative: the actual reviewer names come from the scan output, not from this template:
 
 ```
@@ -156,11 +155,35 @@ No --reviewer specified. Scanned reviewers:
   [code]       <names from scan>
   [skill-tool] <names from scan>
   [unknown]    <names from scan, listed but never suggested>
-Suggested: <chosen name> (<one-line rationale>).
-Pick a reviewer or reply `ok` to accept the suggestion.
 ```
 
-On the user's response: empty input or explicit confirmation → use the suggested reviewer; a candidate name from the scanned list (full, or a bare suffix matching exactly one) → use that one; a bare suffix matching several → re-prompt with those candidates alone, as in step 2; anything else → re-prompt with the same options.
+Then ask through **`AskUserQuestion`**, one question, `multiSelect: false`, as Phase 1 does for the judge.
+The harness renders it, so the menu looks the same at every invocation, which a plain-text block re-emitted by the model does not: that drift is what this form fixes.
+Translate `question` and the `description` fields into the user's language; keep the reviewer names as the scan returned them and the option order as built below.
+One reviewer runs per pass, so the question is single-select.
+
+- `header`: `Reviewer`
+
+- `question`: the detected target type and the one-line rationale tying the suggestion to it.
+
+- `options`, at most four, built in this order, the first being the suggestion the user accepts by selecting it:
+
+  1. the suggested reviewer of Step 3;
+  2. the remaining candidates of the suggested category;
+  3. the candidates of the other category;
+  4. the `unknown` candidates.
+
+  Within each of the three groups, order by shortest `name` first, the tie-break Step 3 already uses, and stop at four options.
+  Each `description` names the candidate's category and, for the first, why Step 3 chose it.
+
+When every candidate is `unknown`, the menu carries the first four under the same tie-break with no option presented as suggested, and the `question` says that no rule selected one.
+Exactly one candidate is the one case the menu cannot take, `AskUserQuestion` requiring two options: append a line asking the user to pick a reviewer or to reply `ok` to accept the suggestion to the plain-text block instead, and read the answer with the resolution rules below.
+
+**On the answer:**
+
+- **One of the listed reviewers** → use it.
+- **`Other`** → take the free text and resolve it with the rules of step 2: a candidate name, full or a bare suffix matching exactly one, is used as-is; a bare suffix matching several re-asks the menu restricted to those candidates alone; a name absent from the scan that resolves to a readable `SKILL.md` is accepted with the same one-line warning; anything else re-asks the menu, unchanged.
+
 Once the choice is locked in, the reviewer's own `category` is not carried any further.
 The walkthrough orchestrator carries it to gate calibration injection, which blindspot does not perform, and Phase 1 derives `ARTIFACT_TYPE` from Step 3's target-type detection instead, a property of the target rather than of the reviewer.
 

@@ -20,6 +20,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
   A slash command is the only way to launch one, and they no longer appear in the model's own skill listing, so a symptom described in plain language reaches none of them.
 - `audit`: `blindspot` picks its external judge through `AskUserQuestion`, from four curated models, one per family, plus free text for any other OpenRouter ID: `google/gemini-4-argon` (default), `openai/gpt-6.1-sol`, `qwen/qwen3.8-max-prime` and `x-ai/grok-4.7`.
   Claude-family, router and floating-alias IDs are refused.
+- `audit`: `blindspot` and `walkthrough` ask which reviewer to run through `AskUserQuestion` instead of a plain-text prompt, the suggested one first.
+  The full scanned list is still printed above the menu, and a candidate past the fourth option is reachable through free text.
 - `audit`: `walkthrough`'s cross-provider check calls OpenRouter directly, where it went through Ouroboros consensus, whose backend replaced every non-Anthropic voter with Claude.
 - `audit`: every OpenRouter call reports its generation ID, checked against OpenRouter's own record.
   An unproven call is reported as unverified and feeds no convergence analysis.
