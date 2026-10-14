@@ -6,8 +6,8 @@ description: >
   User-invocable ONLY via `/audit:blindspot`.
   Does not auto-trigger on mentions of "circular review", "review circulaire", "self-review check", "second opinion", "external judge", or any phrasing requesting circularity countermeasures.
   Runtime enforcement via `disable-model-invocation: true`: the Skill tool cannot launch this skill; user invocation is mandatory.
-  Use when an audit skill (skill-adversary, mcp-adversary, sweep, critical-code-reviewer) is about to review an artifact that shares its codebase, prompts, or model family.
-  Not for: general code review, PR review, a plain skill-adversary/mcp-adversary/sweep run when a second model's opinion and its OpenRouter call are not wanted, or LLM evaluation methodology discussions.
+  Use when an audit skill (skill-adversary, sweep, critical-code-reviewer) is about to review an artifact that shares its codebase, prompts, or model family.
+  Not for: general code review, PR review, a plain skill-adversary/sweep run when a second model's opinion and its OpenRouter call are not wanted, or LLM evaluation methodology discussions.
 ---
 
 # blindspot
@@ -392,7 +392,7 @@ It needs `Write`, for the prompt file it passes to `--rawfile`, and gets it from
   - `skill-tool` (Claude-interpreted instructions, agent definition, or Claude-interpreted artifact) → `"other"`
   - `code` (project-wide or focused) → `"codebase"`
 - `AUDIT_FOCUS`: derive from the resolved reviewer's `SKILL.md`.
-  Read its `description:` frontmatter field, and the body when that field names no dimension, identify the audit dimensions it claims to check: verbs like "review", "audit", "find", followed by their objects (e.g. "trigger edge cases, instruction ambiguities, contradictions, cross-file coherence, gaps" for skill-adversary; "tool-selection ambiguity, discoverability gaps, schema anti-patterns, semantic drift, error handling" for mcp-adversary; "code quality, security, architecture, test coverage" for critical-code-reviewer), and join them as `"<dim1>, <dim2>, ..."`.
+  Read its `description:` frontmatter field, and the body when that field names no dimension, identify the audit dimensions it claims to check: verbs like "review", "audit", "find", followed by their objects (e.g. "trigger edge cases, instruction ambiguities, contradictions, cross-file coherence, gaps" for skill-adversary; "code quality, security, architecture, test coverage" for critical-code-reviewer), and join them as `"<dim1>, <dim2>, ..."`.
   Take them from what the reviewer claims to audit, never from the clauses that scope it out (`Does not auto-trigger on ...`, `Not for: ...`), whose objects read as dimensions too.
   If the reviewer surfaces no concrete dimensions, fall back to the generic `"code quality, security, correctness, completeness"`.
   Never pass an empty or literal `"undefined"` value; the external model would receive `AUDIT FOCUS: ` with no focus and produce a less targeted audit.

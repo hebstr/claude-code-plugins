@@ -6,7 +6,7 @@ Problème identifié en voulant reviewer skill-adversary avec skill-adversary lu
 
 ## Le problème
 
-Tout skill d'audit (skill-adversary, mcp-adversary, critical-code-reviewer, sweep...) est susceptible d'auditer un artefact produit par un système de la même famille, y compris lui-même.
+Tout skill d'audit (skill-adversary, critical-code-reviewer, sweep...) est susceptible d'auditer un artefact produit par un système de la même famille, y compris lui-même.
 
 Le terme académique est **"self-preference bias"** (Panickssery et al., 2024, arXiv: 2404.13076).
 Les LLMs reconnaissent et favorisent systématiquement leurs propres outputs, même à qualité contrôlée.
@@ -126,7 +126,6 @@ Et le suffixe nu ambigu n'est pas exerçable du tout sans deux plugins installé
 ### Cas d'usage concrets
 
 - skill-adversary review skill-adversary
-- mcp-adversary review le MCP d'ouroboros (qu'il utilise)
 - sweep review le repo de sweep
 - critical-code-reviewer review son propre code
 

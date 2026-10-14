@@ -78,7 +78,7 @@ Run the **Circularity check (blindspot suggestion)** section of the sibling `wal
 A match inside a tree the sweep does not review does not count: the prune paths of the LOC command above (`node_modules/`, `renv/`, `venv/`, `.venv/`, `vendor/`), and any installed or cached copy of a plugin, such as one under a `plugins/cache/` directory.
 Without that, a sweep of a directory holding one plugin repository among many unrelated projects fires the nudge on all of them.
 It applies here for the same reason it applies there, and for one this skill adds: a sweep detects its own target and launches four agents on it, so a project that is itself a Claude-interpreted artifact (a skill or plugin repository, anything under `~/.claude/`) is reviewed by Claude's own priors four times over before the user has named any reviewer.
-A sibling reviewer invoked directly, `audit:skill-adversary` or `audit:mcp-adversary`, carries no such check by design: its target is one the user has just chosen.
+A sibling reviewer invoked directly, `audit:skill-adversary`, carries no such check by design: its target is one the user has just chosen.
 
 Its response handling is translated here rather than inherited: the delegated yes-branch ends "the orchestrator", prints a `--reviewer <reviewer>` argument a sweep has no value for, and sends the user back to `/audit:walkthrough`, none of which has a referent in a sweep.
 

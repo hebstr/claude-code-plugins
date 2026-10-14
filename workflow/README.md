@@ -1,10 +1,10 @@
 # workflow
 
-Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, source-backed recommendations, and documentation layout audits.
+Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, and source-backed recommendations.
 
 Every skill is **explicit-invocation only**: invoked by typing its slash command, never auto-triggered from natural language.
-All four set `disable-model-invocation: true`, which keeps them out of the model's own skill listing as well, so describing a symptom in plain language reaches no skill here: Claude cannot propose, match or launch one it does not see, and the `Skill` tool refuses it by name even when the user typed that name.
-That effect is measured rather than assumed: on 2026-10-10, across these four skills and `audit`'s five, the four `audit` skills then carrying the flag were absent from the listing and the five without it (`audit:sweep` and these four) were listed.
+All three set `disable-model-invocation: true`, which keeps them out of the model's own skill listing as well, so describing a symptom in plain language reaches no skill here: Claude cannot propose, match or launch one it does not see, and the `Skill` tool refuses it by name even when the user typed that name.
+That effect is measured rather than assumed: on 2026-10-10, when the marketplace carried nine skills, the four then carrying the flag were absent from the listing and the five without it were listed.
 Once the flag reached all nine and both plugins were reinstalled, all nine were absent from the listing of a session started after that install, on 2026-10-14, while a slash command typed by the user still reached its skill.
 
 ## Install
@@ -21,7 +21,6 @@ claude plugin install workflow@hebstr
   | [`sync`](./sync/)                   | `/workflow:sync`                           | Scans all project files for staleness and updates them. Always runs a cross-repo semantic consistency pass with parallel agents.                                                                             |
   | [`write`](./write/)                 | `/workflow:write`                          | Strips AI writing patterns and rewrites prose to read naturally. Routes to a French or English reference per text language; includes a bilingual review mode (FR-EN parity, typography, false friends).      |
   | [`reco`](./reco/)                   | `/workflow:reco`                           | Deep recommendation backed by external sources. Parallel agents pull official docs (WebFetch) and community practice (WebSearch); the skill synthesizes a structured recommendation with verified citations. |
-  | [`doc-structure`](./doc-structure/) | `/workflow:doc-structure [<project-path>]` | Audits documentation layout (CLAUDE.md vs README.md), proposes verbatim migrations of misplaced prose, and updates the CLAUDE.md index.                                                                      |
 
 ## Per-skill details
 
@@ -42,11 +41,6 @@ URLs are verified before being cited.
 Disagreement between sources is surfaced, not papered over.
 Use it when external grounding matters; for an unsourced recommendation based only on what Claude already knows, just ask directly.
 
-### `/workflow:doc-structure`
-
-Walks a 5-phase workflow (Discovery, Audit, Migration, Index updates, Verification) to classify documentation content as HOW (operational, belongs in CLAUDE.md) or WHY (architectural, belongs in README.md), then proposes verbatim moves with per-file approval.
-Generated-source files (`README.Rmd`/`README.qmd`) are detected and the source is edited rather than the generated target.
-
 ## Common usage
 
 ```bash
@@ -58,9 +52,6 @@ Generated-source files (`README.Rmd`/`README.qmd`) are detected and the source i
 
 # Deep, source-backed recommendation on a topic
 /workflow:reco "topic"
-
-# Audit documentation layout for the current project
-/workflow:doc-structure
 ```
 
 ## Requirements

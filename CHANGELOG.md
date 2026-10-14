@@ -16,7 +16,7 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Changed
 
-- `audit`, `workflow`: the nine skills of the marketplace set `disable-model-invocation: true`.
+- `audit`, `workflow`: every skill of the marketplace sets `disable-model-invocation: true`.
   A slash command is the only way to launch one, and they no longer appear in the model's own skill listing, so a symptom described in plain language reaches none of them.
 - `audit`: `blindspot` picks its external judge through `AskUserQuestion`, from four curated models, one per family, plus free text for any other OpenRouter ID: `google/gemini-4-argon` (default), `openai/gpt-6.1-sol`, `qwen/qwen3.8-max-prime` and `x-ai/grok-4.7`.
   Claude-family, router and floating-alias IDs are refused.
@@ -32,6 +32,10 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Removed
 
+- `audit`: `mcp-adversary` is removed, with no replacement.
+  Reviewing an MCP server now goes through a general reviewer passed to `walkthrough` or `blindspot` as `--reviewer`; `blindspot` still routes a target holding MCP tool definitions to whichever installed reviewer claims that capability.
+- `workflow`: `doc-structure` is removed, with no replacement.
+  Documentation layout is no longer audited by a dedicated command.
 - `audit`: `walkthrough` no longer depends on the [Ouroboros](https://github.com/Q00/ouroboros) plugin, and no longer offers to install it.
   Four mechanisms go with it, none replaced: the QA second opinion, the lateral-think rescue, the final evaluate and the drift check.
   `jq` and `gh` are no longer required; `python3` and an OpenRouter key are.
@@ -51,7 +55,6 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: the reviewer scan credited a skill to a sibling plugin, dropped distinct skills sharing a name, offered skills from disabled plugins and from stale copies, and refused `audit:sweep` outright.
 - `audit`: `sweep` named two `r-lib` skills that the installed set does not have, so its R-package agents always fell back to inline review.
 - `audit`: `sweep` resolved its `[path]` argument nowhere, so a sweep of another path was calibrated against the working directory.
-- `audit`: `mcp-adversary` listed the configured MCP servers from two files that never hold an `mcpServers` key, so both lists were always empty.
 - `audit`: an exit status the three `python3` scripts did not enumerate, 127 among them, failed with no reason attached; every exit now resolves to a documented branch.
 - `audit`: the generation check reported `model_mismatch` on a real call whenever OpenRouter's record expanded a date the requested slug already carried.
 - `audit`: `blindspot`'s path-overlap axis duplicated the model-family axis, so every Claude-authored target read "Strong circularity" and "Structural circularity" was unreachable.

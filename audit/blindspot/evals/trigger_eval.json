@@ -1,7 +1,7 @@
 [
   {"query": "/audit:blindspot audit/skill-adversary --reviewer audit:skill-adversary", "should_trigger": true},
   {"query": "I want to review my skill with skill-adversary but it's a skill I wrote with Claude — is there a bias issue?", "should_trigger": false},
-  {"query": "lance blindspot sur mcp-adversary qui review le MCP ouroboros", "should_trigger": false},
+  {"query": "lance blindspot sur skill-adversary qui review une skill écrite avec Claude", "should_trigger": false},
   {"query": "can Claude objectively review this skill or is there a conflict of interest?", "should_trigger": false},
   {"query": "add a second opinion from a different model on this review", "should_trigger": false},
   {"query": "hey I just ran skill-adversary on my own skill-adversary directory and the report seems suspiciously positive — can you double-check with an external model?", "should_trigger": false},
@@ -15,7 +15,7 @@
   {"query": "run a full review on my Python project in ~/projects/webapp/", "should_trigger": false},
   {"query": "critically review my R package code in src/main.R", "should_trigger": false},
   {"query": "can you explain how LLM-as-a-judge works and what the known biases are?", "should_trigger": false},
-  {"query": "use mcp-adversary to review the Slack MCP server I installed", "should_trigger": false},
+  {"query": "use posit-dev:critical-code-reviewer to review the Slack MCP server I installed", "should_trigger": false},
   {"query": "I need a code review of this Python function, check for security issues", "should_trigger": false},
   {"query": "compare the outputs of GPT-4 and Claude on this task", "should_trigger": false},
   {"query": "run skill-adversary on the bookmarks-manager skill", "should_trigger": false}

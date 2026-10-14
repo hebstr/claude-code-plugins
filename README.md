@@ -27,7 +27,7 @@ claude plugin install workflow@hebstr
 
 ### `audit`
 
-Review workflows for code, Claude Code skills and MCP servers.
+Review workflows for code and Claude Code skills.
 Covers point-by-point walkthroughs, full-project sweeps, and adversarial cross-model review with circularity detection.
 
   | Skill                                         | Purpose                                                                                                                                                                        |
@@ -36,20 +36,18 @@ Covers point-by-point walkthroughs, full-project sweeps, and adversarial cross-m
   | [`sweep`](./audit/sweep/)                     | Full project review. Spawns parallel agents (architecture, quality, tests, docs) and consolidates findings into one deduplicated report                                        |
   | [`blindspot`](./audit/blindspot/)             | Reviewer orchestrator that detects circularity (reviewer shares its target's codebase or model family) and injects cross-model judging via [OpenRouter](https://openrouter.ai) |
   | [`skill-adversary`](./audit/skill-adversary/) | Adversarial reviewer for Claude Code skills. Surfaces trigger edge cases, instruction ambiguities, cross-file coherence issues, and gaps                                       |
-  | [`mcp-adversary`](./audit/mcp-adversary/)     | Adversarial reviewer for MCP servers. Surfaces tool-selection ambiguity, schema anti-patterns, semantic drift, and undocumented workflow dependencies                          |
 
 See [`audit/README.md`](./audit/README.md) for per-skill details.
 
 ### `workflow`
 
-Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, source-backed recommendations, and documentation layout audits.
+Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, and source-backed recommendations.
 
   | Skill                                        | Purpose                                                                                                                                                                                                     |
   | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
   | [`sync`](./workflow/sync/)                   | Scans all project files, identifies those stale relative to recent changes, and updates them. Always runs a cross-repo semantic consistency pass with parallel agents                                       |
   | [`write`](./workflow/write/)                 | Strips AI writing patterns and rewrites prose to read naturally. Routes to a French or English reference per text language. Includes a bilingual review mode (FR-EN parity, typo, faux amis)                |
   | [`reco`](./workflow/reco/)                   | Deep recommendation backed by external sources. Parallel agents pull official docs (WebFetch) and community practice (WebSearch); the skill synthesizes a structured recommendation with verified citations |
-  | [`doc-structure`](./workflow/doc-structure/) | Audits documentation layout (CLAUDE.md vs README.md), proposes verbatim migrations of misplaced prose, and updates the CLAUDE.md index                                                                      |
 
 See [`workflow/README.md`](./workflow/README.md) for per-skill details.
 
@@ -67,7 +65,7 @@ What each skill does without each dependency is in the table of [`audit/README.m
   | Dependency                                                                                                                                 | Used by                                                                                                                               | Unlocks                                                                                                                                                                                                                                                |
   | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                 |
   | `OPENROUTER_API_KEY` env var                                                                                                               | [`audit:blindspot`](./audit/blindspot/), [`audit:walkthrough`](./audit/walkthrough/)                                                  | Cross-model judging and cross-provider validation via [OpenRouter](https://openrouter.ai)                                                                                                                                                              |
-  | `python3` (standard library only)                                                                                                          | [`audit:blindspot`](./audit/blindspot/), [`audit:walkthrough`](./audit/walkthrough/), [`audit:mcp-adversary`](./audit/mcp-adversary/) | Reviewer scan (`scan-reviewers.py`), the L2 OpenRouter verdict call (`openrouter-verdict.py`), the generation-ID check of every OpenRouter call (`openrouter-generation.py`), and MCP server discovery                                                 |
+  | `python3` (standard library only)                                                                                                          | [`audit:blindspot`](./audit/blindspot/), [`audit:walkthrough`](./audit/walkthrough/)                                                  | Reviewer scan (`scan-reviewers.py`), the L2 OpenRouter verdict call (`openrouter-verdict.py`), and the generation-ID check of every OpenRouter call (`openrouter-generation.py`)                                                                       |
   | `jq` CLI                                                                                                                                   | [`audit:blindspot`](./audit/blindspot/)                                                                                               | Required to build the cross-model judge request                                                                                                                                                                                                        |
   | [`critical-code-reviewer`](https://github.com/posit-dev/skills) (posit-dev/skills)                                                         | [`audit:sweep`](./audit/sweep/), [`audit:walkthrough`](./audit/walkthrough/)                                                          | Specialist code-review agent. Default reviewer in `audit:sweep`; recommended `--reviewer` for `audit:walkthrough` on code targets. `audit:sweep` falls back to inline review when absent                                                               |
   | [`r-lib`](https://github.com/posit-dev/skills) skills `r-testthat`, `r-package-development`, `r-cran-extrachecks` (posit-dev/skills)       | [`audit:sweep`](./audit/sweep/) on R projects                                                                                         | R-specific test, package, and CRAN-readiness audits                                                                                                                                                                                                    |

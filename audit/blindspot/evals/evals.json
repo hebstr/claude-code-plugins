@@ -24,7 +24,7 @@
     },
     {
       "id": 3,
-      "prompt": "lance blindspot sur mcp-adversary qui review le MCP ouroboros",
+      "prompt": "lance blindspot sur skill-adversary qui review une skill écrite avec Claude",
       "expected_output": "Should NOT trigger. blindspot is explicit-invocation only (disable-model-invocation: true): naming it in natural language, in any language, does not launch it.",
       "files": [],
       "expectations": [

@@ -22,7 +22,7 @@ The injection carries the exemption the sibling `walkthrough` orchestrator carri
 Phase 0 also runs the orchestrator's `Circularity check (blindspot suggestion)` section (2026-10-10), with one trigger added for a target that is a project root rather than a file: a `SKILL.md` or a `.claude-plugin/marketplace.json` anywhere under it.
 It runs before the calibration step, which is the order the delegated section gives as its own reason for running first, and its response handling is translated rather than inherited: the delegated yes-branch names an orchestrator and a `--reviewer` argument a sweep has neither of, so sweep states both branches itself and sends a yes to `/audit:blindspot [path] --reviewer audit:sweep`.
 A sweep detects its own target and launches four agents on it, so a project that is itself a Claude-interpreted artifact is read by Claude's own priors four times over before the user has named any reviewer.
-The sibling leaf reviewers (`skill-adversary`, `mcp-adversary`) carry no such check by design: their target is one the user has just chosen.
+The sibling leaf reviewer (`skill-adversary`) carries no such check by design: its target is one the user has just chosen.
 
 ### Skill fallback and transparency chain
 
