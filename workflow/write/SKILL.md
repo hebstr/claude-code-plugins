@@ -1,5 +1,6 @@
 ---
 name: write
+disable-model-invocation: true
 description: >-
   Invoke ONLY when the user explicitly types `/workflow:write`.
   Do not auto-trigger on mentions of 'draft', 'edit', 'proofread', 'polish', 'rewrite', 'sound natural', or French equivalents ('écris', 'rédige', 'relis', 'corrige', 'polis', 'dégraisse', 'retravaille').

@@ -1,5 +1,6 @@
 ---
 name: sync
+disable-model-invocation: true
 description: Scan all files in the current directory and subdirectories, identify files that are stale relative to recent changes, and update them.
   Always performs a cross-repo semantic consistency scan with parallel agents.
   User-invocable ONLY via /workflow:sync; does not auto-trigger on mentions of 'sync', 'synchronize', 'synchronization', 'stale files', 'stale data', 'consistency check', 'cross-repo check', or French equivalents ('synchroniser', 'synchronisation', 'cohérence', 'fichiers obsolètes').

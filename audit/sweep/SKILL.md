@@ -1,5 +1,6 @@
 ---
 name: sweep
+disable-model-invocation: true
 allowed-tools: Read Glob Grep Bash Agent Skill
 description: >
   User-invocable ONLY via `/audit:sweep`.

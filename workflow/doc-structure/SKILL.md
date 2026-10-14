@@ -1,5 +1,6 @@
 ---
 name: doc-structure
+disable-model-invocation: true
 description: Audit and reorganize project documentation layout (CLAUDE.md for Claude rules, README.md for human docs).
   User-invocable ONLY via `/workflow:doc-structure [<project-path>]`; the path is optional and defaults to the current working directory.
   For monorepos, invoke once per sub-package path.

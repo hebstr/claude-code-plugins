@@ -12,6 +12,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: `walkthrough` takes an opt-in `--auto` flag that lifts the unconditional per-point wait of Step 2e, so a long report is adjudicated without an approval turn between every point.
   It governs the Step 2 loop only: the walkthrough still pauses on a closed list of conditions (a glob or bare directory to narrow, an uncertain verdict, an author's defense holding with no corroboration available, an unresolved L1/L2 divergence, a mandatory L2 unavailable on a `claude-only` finding, a fix needing a scope broadening, a detected regression) and on anything outside that list, and everything blocking before the loop keeps blocking, the L2 degradation notice and the `Override?` prompt included.
   There is no `--no-auto`: the default is what the flag's absence already means.
+- repo: an empty `.internal` marker at the root, which the deployment-context detection shared by `walkthrough` and `sweep` reads as its first path heuristic, so a review of this repository calibrates its severity as `internal`.
+  Without it the detection reaches its CI classification, where `.github/workflows/release.yml` is a deploy signal and resolves `production`, the strictest band, on a marketplace of personal skills.
 
 ### Fixed
 
@@ -36,6 +38,9 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Changed
 
+- `audit` and `workflow`: `sweep` and the four `workflow` skills set `disable-model-invocation: true`, so the nine skills of the marketplace all enforce at runtime the explicit-invocation contract their descriptions and both READMEs already stated.
+  The flag also keeps a skill out of the model's own listing, so a plain-language symptom no longer reaches any of the five, Claude being unable to propose or match a skill it does not see, and the `Skill` tool refuses the name even when the user types it: the slash command is the only entry point left.
+  Nothing in the marketplace launched any of the five that way, `sweep`'s own `Skill` grant being for the third-party reviewers it invokes rather than for being invoked, and none of the five ships an eval suite to realign.
 - `audit`: `blindspot`'s own blindspot audit is adjudicated in full (reviewer `skill-adversary`, external judge `openai/gpt-5.6-sol`, 54 raw findings over 38 points: 33 accepted, 2 rejected, 1 noted, 2 blocked on an unmeasured harness behaviour).
   Its `evals.json` gains four behavioural cases covering refusal branches that had none, self-invocation through `--reviewer`, a missing target, an unknown reviewer name and a target outside the allowed scope, against a suite where eight of nine entries only asserted that the skill does not trigger.
   Eval 1 states the install topology its `Path overlap: No` expectation depends on, this repository's marketplace declaring `source: ./`, under which a local or project-scoped install loads in place and resolves the reviewer inside the target.
@@ -50,8 +55,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: the reviewer scan has a pytest suite (`audit/walkthrough/scripts/test_scan_reviewers.py`), which CI runs next to ruff, now applied to the whole `scripts/` directory.
 - `audit`: `skill-adversary` and `mcp-adversary` set `disable-model-invocation: true`, so the `Skill` tool refuses to launch them and the "User-invocable ONLY" contract their descriptions already stated is enforced at runtime, as it already was for `blindspot`.
   Their eval suites follow: the positive case invokes the slash command, and the natural-language cases that repeated a listed non-trigger verbatim now expect no trigger, which turns them into regression tests for the contract instead of contradictions of it.
-  Five skills still claim explicit invocation without enforcing it (`sweep` and the four `workflow` skills); none of them ships an eval suite to realign.
-- `audit`: `walkthrough` sets `disable-model-invocation: true` and declares `allowed-tools`, the last skill of the plugin to state the "User-invocable ONLY" contract without enforcing it and the only one that declared no tools at all.
+  The five that still claimed explicit invocation without enforcing it, `sweep` and the four `workflow` skills, followed in this same unreleased batch, see the `disable-model-invocation` entry at the head of this section.
+- `audit`: `walkthrough` sets `disable-model-invocation: true` and declares `allowed-tools`, the fourth skill of the plugin to enforce the "User-invocable ONLY" contract its description already stated, which left `sweep`, and the only skill of the two plugins that declared no tools at all.
   Its eight eval prompts open on `/audit:walkthrough` with every behavioural expectation left untouched, and two negative cases are added, an English `DEFERRED.md` cleanup and a French paraphrase of "one by one", so the suite tests the contract instead of contradicting it.
   `sweep`'s Phase 4 follows: it prints the command for the user to run rather than calling the `Skill` tool, which now refuses, on the model its own orchestrator already used for `blindspot`.
   The sweep loses its automatic post-walkthrough test run as a result, since the walkthrough happens in a turn it no longer owns; the printed message carries the project's test command instead.
@@ -114,7 +119,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 - `audit`: the `walkthrough` orchestrator's reviewer prompt states that the agent cannot reach the user, so a reviewer step that would ask a question proceeds on a stated assumption, and requires the target to be substituted already resolved to an absolute path, both properties `blindspot` states for its own reviewer launch.
 
-- docs: `audit/README.md` states that every skill of the plugin is reached by its slash command and by nothing else, and that the four carrying `disable-model-invocation: true` are absent from the model's own skill listing, measured over the plugin's five skills and `workflow`'s four, so a symptom described in plain language reaches no skill here.
+- docs: `audit/README.md` states that every skill of the plugin is reached by its slash command and by nothing else, and what `disable-model-invocation: true` costs beyond refusing the `Skill` tool: it keeps a skill out of the model's own listing, so a symptom described in plain language reaches no skill here.
+  Both READMEs carry that statement as a dated measurement over the nine skills of the two plugins rather than as a claim, and `workflow/README.md` holds the mirror of it for its own four.
 
 - `audit`: the generation check reported `model_mismatch` on a real call whenever OpenRouter's record expanded a date the requested slug already carried, `deepseek/deepseek-v4-pro-0813` being served and recorded as `deepseek/deepseek-v4-pro-20260813`, which made a paid cross-model audit read as an unproven one and held its findings out of the convergence analysis.
   `model_matches` now accepts that expansion, and only it: the declared trailing run must be eight digits forming a valid `YYYYMMDD` whose `MMDD` equals the four-digit run requested, so a sibling model such as `llama-13` against `llama-3` stays refused and the anti-fabrication property holds.

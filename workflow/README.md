@@ -3,6 +3,8 @@
 Project workflow automation: file consistency sweeps, cross-repo synchronization, prose editing, source-backed recommendations, and documentation layout audits.
 
 Every skill is **explicit-invocation only**: invoked by typing its slash command, never auto-triggered from natural language.
+All four set `disable-model-invocation: true`, which keeps them out of the model's own skill listing as well, so describing a symptom in plain language reaches no skill here: Claude cannot propose, match or launch one it does not see, and the `Skill` tool refuses it by name even when the user typed that name.
+That effect is measured rather than assumed: on 2026-10-10, across these four skills and `audit`'s five, the four `audit` skills then carrying the flag were absent from the listing and the five without it (`audit:sweep` and these four) were listed; the same split was observed again on 2026-10-14, in the session that extended the flag to those five.
 
 ## Install
 
