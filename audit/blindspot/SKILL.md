@@ -1,7 +1,7 @@
 ---
 name: blindspot
 disable-model-invocation: true
-allowed-tools: Read Glob Grep Bash Agent
+allowed-tools: Read Glob Grep Bash Agent AskUserQuestion
 description: >
   User-invocable ONLY via `/audit:blindspot`.
   Does not auto-trigger on mentions of "circular review", "review circulaire", "self-review check", "second opinion", "external judge", or any phrasing requesting circularity countermeasures.
@@ -147,7 +147,8 @@ A candidate the scan classified `unknown` is never auto-suggested, since nothing
 When every candidate is `unknown`, present them all with no suggestion and ask the user to pick, rather than promoting one into a slot no rule selected.
 
 **Step 4, present the suggestion and wait.** Show the user the scanned list (grouped by category), the suggested reviewer, and a one-line rationale tying the suggestion to the detected target type.
-Present it as plain text, not through `AskUserQuestion`, whose option cap would hide candidates.
+Present it as plain text, not through `AskUserQuestion`, whose four-option cap would hide candidates.
+The tool is granted and Phase 1 does use it; the divergence is deliberate, that menu's length being fixed at four while this one's comes from a scan and is bounded by nothing.
 The format below is illustrative: the actual reviewer names come from the scan output, not from this template:
 
 ```
@@ -270,46 +271,45 @@ test -n "${OPENROUTER_API_KEY//[[:space:]]/}" && echo "openrouter:available" || 
 ### If OpenRouter available: Pick external model
 
 Before spawning the cross-model judge, present the model menu to the user and wait for their choice.
-The curated entries were checked against the OpenRouter catalog on 2026-09-15; an entry that OpenRouter rejects as unknown has been retired and the list is due for review.
+The curated entries were checked against the OpenRouter catalog on 2026-10-14; an entry that OpenRouter rejects as unknown has been retired and the list is due for review.
 Their IDs come from the table in `agents/cross-model-judge.md`, which is authoritative: change one there first, then re-render this menu from it.
-Display as plain text, not through `AskUserQuestion`, whose option cap would hide entries.
-Translate the prose into the user's language, keeping the model IDs, the option numbers and the entry order as written:
 
-```
-External model for cross-model judge. The audit is being run by Claude, so the goal is a second opinion from a non-Claude family.
+Ask through **`AskUserQuestion`**, one question, `multiSelect: false`.
+The harness renders it, so the menu looks the same at every invocation, which a plain-text block re-emitted by the model does not: that drift is what this form fixes.
+Translate `question` and the four `description` fields into the user's language; keep the model IDs, the `label` strings and the option order as written.
+One judge runs per pass, so the question is single-select; checking several models would mean several OpenRouter calls and several reports to reconcile, which Phase 1 does not do.
 
-  1. google/gemini-3.1-pro-preview : default. Google's frontier reasoning model, far from Claude's training distribution. Preview release.
-  2. google/gemini-3.8-flash       : same family as 1, cheaper and faster. Use for large targets where cost matters.
-  3. openai/gpt-5.6-sol            : OpenAI's GPT-5.6 flagship reasoning model. Different family from 1, useful if you've already audited with Gemini.
-  4. deepseek/deepseek-v4-pro-0813 : DeepSeek's large MoE reasoning model. Low cost, alternative distribution.
-  5. qwen/qwen3.8-max-0902         : Alibaba's large MoE model, alternative distribution. Pick when other models converge and you want a wildcard.
-  6. x-ai/grok-4.6                 : xAI's reasoning model. One more family for a third pass.
-  7. Custom                        : type any OpenRouter model ID. A cost notice is shown before launch.
+- `header`: `Judge`
+- `question`: `External model for the cross-model judge. The audit is being run by Claude, so the goal is a second opinion from a non-Claude family.`
+- `options`, in this order, the first being the default the user accepts by selecting it:
 
-Quick rule: for a one-shot audit, pick 1. For a second pass after Gemini, pick 3 or 4 (different family). For speed on a large artifact, pick 2.
+  | `label`                  | `description`                                                                                                  |
+  | ------------------------ | ------------------------------------------------------------------------------------------------------------   |
+  | `google/gemini-4-argon`  | Default. Google's frontier model, far from Claude's training distribution. Pick this for a one-shot audit.     |
+  | `openai/gpt-6.1-sol`     | OpenAI's flagship. Different family from the default, so pick it for a second pass after a Gemini run.         |
+  | `qwen/qwen3.8-max-prime` | Qwen's flagship, the most distant distribution of the four. Pick it when the other models converge.            |
+  | `x-ai/grok-4.7`          | xAI's reasoning model. A fourth family, for a third pass on the same target.                                   |
 
-Your choice [1-7, or `default` for 1]:
-```
+`AskUserQuestion` appends its own `Other` entry, which accepts free text: that entry is the custom-ID flow below, and it is also how the two IDs retired from the curated table on 2026-10-14 stay reachable.
+The cap is four options per question, so a fifth curated entry costs one of these four; the table in `agents/cross-model-judge.md` states which axis decides that.
 
-**On user response:**
+**On the answer:**
 
-- **`1`-`6`** → map to the corresponding curated entry (see `agents/cross-model-judge.md` for the canonical mapping).
-  Use that model ID as `EXTERNAL_MODEL`.
-- **Empty / `default` / "1"** → use `google/gemini-3.1-pro-preview`.
-- **Full model ID matching one of the curated entries** (e.g., `openai/gpt-5.6-sol`) → accept and use it.
-- **`7` / `custom`** → trigger the custom flow described below.
-- **Anything else / ambiguous** → re-present the menu once with a one-line clarification ("Pick a number 1-7, or reply `default` for 1."), then default to `1` on a second ambiguous response.
+- **One of the four labels** → use it verbatim as `EXTERNAL_MODEL`, the label being the ID.
+- **`Other`** → take the free text and run the custom flow below on it.
+- **No answer at all**, the tool returning nothing because the user dismissed it → use `google/gemini-4-argon` and say so in one line rather than re-asking.
 
-**Custom model flow (option 7):**
+**Custom model flow (the `Other` entry):**
 
-1. Prompt: `OpenRouter model ID (e.g., provider/model-name):` and wait for input.
+1. The ID is the free text the user typed into `Other`; it is not asked for a second time.
+   When that text is empty or names no ID at all, ask once in plain text, `OpenRouter model ID (e.g., provider/model-name):`, and wait.
 
-2. Validate the input format with regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$` (letters, digits, dashes/dots/underscores; case-insensitive; exactly one slash; an optional `:variant` suffix, which 96 of the 447 catalog IDs carry, `:free` and `:batch` among them; no spaces).
+2. Validate the input format with regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$` (letters, digits, dashes/dots/underscores; case-insensitive; exactly one slash; an optional `:variant` suffix, which 91 of the 462 catalog IDs carry, `:free` and `:batch` among them; no spaces).
    If invalid, re-prompt once showing the expected pattern.
-   On second invalid input, abort the custom flow and default to `1`.
+   On second invalid input, abort the custom flow and default to `google/gemini-4-argon`.
    Refuse, then re-prompt, an ID whose provider segment is `anthropic` or whose model segment contains `claude` (case-insensitive): a same-family judge would pass "Verify the external call" and be reported as cross-model evidence.
    Refuse a router ID (`openrouter/auto` and the other `openrouter/` entries) the same way: it names no concrete model, so the generation record returns whichever model answered and the check reports `model_mismatch`, leaving the whole audit unverified.
-   The format regex already refuses the catalog's floating aliases (`~<provider>/<model>-latest`, 18 entries) for that same reason.
+   The format regex already refuses the catalog's floating aliases (`~<provider>/<model>-latest`, 19 entries, and the only 19 IDs of the catalog it rejects, measured 2026-10-14) for that same reason.
 
 3. On valid format, display the cost notice and wait for confirmation:
 
@@ -324,7 +324,7 @@ Your choice [1-7, or `default` for 1]:
    ```
 
 4. On `y` / `yes` → use the custom ID as `EXTERNAL_MODEL`.
-   On `N` / empty / anything else → return to the main model menu (re-display from the top).
+   On `N` / empty / anything else → ask the `AskUserQuestion` menu again, unchanged.
 
 **No silent interpolation.** Beside the Claude-family and router refusals, the format regex is the only validation done by the skill; it rejects shell-suspicious characters (spaces, `;`, `|`, `$`, `` ` ``, backticks, etc.) before the value ever reaches the agent.
 The agent passes that ID through `jq --arg` (see `agents/cross-model-judge.md`), which is injection-safe regardless, but the skill-level regex prevents accidental typos from triggering OpenRouter API errors that would consume a billing call.
@@ -339,7 +339,7 @@ First run `date +%s` and write its output to `judge-since.txt` in the session sc
 The value is captured here and consumed after a turn boundary this skill imposes on itself, so neither a shell variable nor the transcript carries it reliably across a long agent run or a compaction.
 
 Then check `EXTERNAL_MODEL` against the live catalogue, before either Agent is spawned.
-The judge reads the whole target and builds its prompt before OpenRouter ever sees the ID, so a retired curated entry or a mistyped custom one from option 7, whose only other gate is the format regex, costs a full reviewer run alongside it.
+The judge reads the whole target and builds its prompt before OpenRouter ever sees the ID, so a retired curated entry or a mistyped custom one from `Other`, whose only other gate is the format regex, costs a full reviewer run alongside it.
 The endpoint needs no key, so nothing here touches `OPENROUTER_API_KEY`.
 
 ```bash
@@ -647,8 +647,8 @@ Run `/audit:walkthrough` (no arguments) to process these findings interactively.
 - **Transparency is mandatory.** Every report includes the circularity assessment and
   countermeasures applied (or not applied), regardless of findings.
 - **An external call counts only once proven.** The judge's generation ID is checked against OpenRouter's generation record in the main context; without a `verified` status, its findings are reported as unverified and never feed the convergence analysis.
-- **Model selection.** The external model is picked interactively at invocation via the menu in Phase 1 (default on `default` or `1`: `google/gemini-3.1-pro-preview`, strong reasoning, non-Claude family).
-  Six curated options are surfaced; option 7 accepts any non-Claude, non-router OpenRouter model ID after format validation and an explicit cost-warning confirmation.
+- **Model selection.** The external model is picked interactively at invocation through the Phase 1 `AskUserQuestion` menu, whose first option is the default: `google/gemini-4-argon`, strong reasoning, non-Claude family.
+  Four curated options are surfaced, one family each; the tool's own `Other` entry accepts any non-Claude, non-router OpenRouter model ID after format validation and an explicit cost-warning confirmation.
   Whichever is chosen is then checked against OpenRouter's live catalogue before either Agent is spawned, so a retired or mistyped ID costs a one-second lookup rather than a reviewer run.
   Both the skill and the agent re-validate against the format regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$` (defense in depth), and the agent passes the ID with `jq --arg` and the audit prompt with `--rawfile` from a file for the actual API call.
 - **No credentials in prompts.** The OPENROUTER_API_KEY is read from the environment.

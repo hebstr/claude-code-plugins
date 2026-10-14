@@ -21,20 +21,23 @@ The agent does not select or default this value; it receives a concrete ID and r
 
 ### Model selection
 
-The parent skill (`audit/blindspot/SKILL.md`) handles model choice via an interactive menu of six curated options plus a custom-input flow.
+The parent skill (`audit/blindspot/SKILL.md`) handles model choice via an `AskUserQuestion` menu of four curated options plus the free-text `Other` entry.
 The agent receives an already-validated `EXTERNAL_MODEL` and trusts it.
 
-**Curated options**, the authoritative list of IDs for this skill, checked against the OpenRouter catalog on 2026-09-15.
-The menu in `audit/blindspot/SKILL.md` renders these same six and is derived from this table, so change an ID here first; `audit/walkthrough/agents/cross-model-bridge.md` cites the table by family rather than copying IDs, for the drift reason it states.
+**Curated options**, the authoritative list of IDs for this skill, checked against the OpenRouter catalog on 2026-10-14.
+The menu in `audit/blindspot/SKILL.md` renders these same four and is derived from this table, so change an ID here first; `audit/walkthrough/agents/cross-model-bridge.md` cites the table by family rather than copying IDs, for the drift reason it states.
 
-  | Model ID                        | Family                |
-  | ------------------------------- | --------------------- |
-  | `google/gemini-3.1-pro-preview` | Google (menu default) |
-  | `google/gemini-3.8-flash`       | Google                |
-  | `openai/gpt-5.6-sol`            | OpenAI                |
-  | `deepseek/deepseek-v4-pro-0813` | DeepSeek              |
-  | `qwen/qwen3.8-max-0902`         | Alibaba (Qwen)        |
-  | `x-ai/grok-4.6`                 | xAI                   |
+  | Model ID                 | Family                |
+  | ------------------------ | --------------------- |
+  | `google/gemini-4-argon`  | Google (menu default) |
+  | `openai/gpt-6.1-sol`     | OpenAI                |
+  | `qwen/qwen3.8-max-prime` | Alibaba (Qwen)        |
+  | `x-ai/grok-4.7`          | xAI                   |
+
+**One family per row, one row per family**, and the flagship of that family rather than its cheapest tier.
+The countermeasure buys its signal from distance to Claude's training distribution, so family coverage is the primary axis and capability inside a family is the tie-break; cost is not an axis, a whole pass having been measured at 0.246243 USD on 2026-10-10.
+That is what retired the two entries this table carried until 2026-10-14 whose only argument was price, `google/gemini-3.8-flash` (second Google row, "cheaper and faster") and `deepseek/deepseek-v4-pro-0813` ("low cost"); both remain reachable through `Other`, and the DeepSeek ID still serves as the permaslug-expansion example in `audit/blindspot/SKILL.md` and in `../walkthrough/agents/cross-model-bridge.md`.
+The four IDs are each their family's current flagship as of 2026-10-14, the four previous ones having been one generation behind without being retired from the catalog.
 
 **Format validation at this layer.** Independently of the skill, the agent re-validates `EXTERNAL_MODEL` against the regex `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$` before any use, the optional suffix covering the catalog's `:free` and `:batch` variants.
 If it does not match, report the error and stop.

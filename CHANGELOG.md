@@ -7,6 +7,19 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ## [Unreleased]
 
+### Changed
+
+- `audit`: `blindspot` asks for its external judge through `AskUserQuestion` instead of a plain-text numbered list, and regains the `AskUserQuestion` grant in `allowed-tools`.
+  The menu was a fenced template the model had to re-emit, translation included, so its rendering drifted from one invocation to the next; the harness renders this one.
+  The tool caps a question at four options, which is what the curated table is cut to, with the tool's own free-text `Other` entry carrying the former option 7 and keeping every other ID reachable.
+  The reviewer menu of Step 4 stays plain text, its length coming from a scan and being bounded by nothing, and that divergence is now stated where a reader would read the grant as covering both.
+- `audit`: the curated judge table of `blindspot` holds four models, one per family, each its family's current flagship, measured against the OpenRouter catalog on 2026-10-14: `google/gemini-4-argon` (menu default), `openai/gpt-6.1-sol`, `qwen/qwen3.8-max-prime`, `x-ai/grok-4.7`.
+  The four they replace were one generation behind without having been retired from the catalog.
+  `google/gemini-3.8-flash` and `deepseek/deepseek-v4-pro-0813` leave the table rather than being bumped: their stated argument was price, which stops being a selection axis on a countermeasure whose signal comes from distance to Claude's distribution and whose whole pass was measured at 0.246243 USD.
+  The table now states that axis, so a later edit does not restore a cheap tier by default; both IDs stay reachable through `Other`, and the DeepSeek one still serves as the permaslug-expansion example it was already cited for.
+  `cross-model-bridge.md` picks the L2 model from that table by family: its Google branch no longer justifies itself by the table holding two Google rows, the `menu default` marker having always been what names the row.
+- `audit`: the two catalog figures quoted by `blindspot`'s format regex are re-measured on 2026-10-14, 91 of 462 IDs carrying a `:variant` suffix against 96 of 447, and the 19 floating `~<provider>/<model>-latest` aliases against 18, now stated as the only 19 IDs of the catalog that the regex rejects.
+
 ### Added
 
 - `audit`: `walkthrough` takes an opt-in `--auto` flag that lifts the unconditional per-point wait of Step 2e, so a long report is adjudicated without an approval turn between every point.

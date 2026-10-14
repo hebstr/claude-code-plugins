@@ -137,7 +137,8 @@ L2 asks one non-Claude model, through OpenRouter, whether the finding holds, usi
 
 **Model selection.** One external model per finding, taken from the curated table in `../blindspot/agents/cross-model-judge.md`, by family rather than by ID:
 - the table's OpenAI entry by default;
-- its Google entry marked `menu default` instead, the table holding more than one Google row, when the input came from `blindspot` and the external model carried from SKILL.md Step 1 (parsed from the report's `### Cross-Model Findings (<model>)` header) is itself an `openai/` model.
+- its Google entry marked `menu default` instead, when the input came from `blindspot` and the external model carried from SKILL.md Step 1 (parsed from the report's `### Cross-Model Findings (<model>)` header) is itself an `openai/` model.
+The marker, not the row's position, is what names it: the table held two Google rows until 2026-10-14 and carries one since, and this rule has to survive either shape.
 The switch covers every finding of such a report, which its reason has to match: asking the phase-1 model again confirms itself on a finding it flagged (`external-only`) and re-misses one it did not (`claude-only`), and on an `agreed` finding the severity trigger is skipped anyway, so no case is left where re-asking it would be neutral.
 When no row of that table carries the `menu default` marker, because it was renamed or dropped, do not pick silently: take the table's first Google row and emit the run-level `warn` anomaly `Judge table has no 'menu default' row; L2 fell back to the first Google entry.`
 When the family a branch names is absent from the table altogether, the OpenAI row renamed out of its family or dropped, or no Google row left for the switch, take the table's first row whose family is not the Phase 1 model's and emit the run-level `warn` anomaly `Judge table has no <family> row; L2 fell back to the first <fallback> entry.`
