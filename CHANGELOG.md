@@ -11,6 +11,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 - `audit`: `walkthrough` takes `--auto`, which adjudicates a long report without an approval turn between every point.
   It still pauses on a closed list of conditions, and everything blocking before the loop keeps blocking.
+- `audit`: `walkthrough` takes `--judge <model-id>`, which pins the cross-provider L2 calls of a pass to one OpenRouter model instead of the automatic selection by family, in all three modes and under `--auto`.
+  A malformed ID, a Claude-family or router ID, and the external judge of the blindspot report being walked are each refused, with a fallback to the automatic selection and a run-level warning.
 
 ### Changed
 

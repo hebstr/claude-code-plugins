@@ -270,6 +270,31 @@ def test_model_pattern_accepts_a_variant_suffix():
     assert ov.MODEL_PAT.match("deepseek/deepseek-r1:free")
 
 
+@pytest.mark.parametrize(
+    "refused",
+    [
+        "anthropic/claude-opus-5",
+        "ANTHROPIC/claude-sonnet-5-5",
+        "openrouter/auto",
+        "bedrock/anthropic.claude-v2",
+        "vertex/CLAUDE-3-opus",
+    ],
+)
+def test_main_refuses_claude_family_and_router_models(tmp_path, refused, capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        ov.main(["--model", refused, *write_inputs(tmp_path)])
+    assert excinfo.value.code == 2
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "accepted",
+    ["openai/gpt-6.1-sol", "google/gemini-4-argon", "x-ai/grok-4.7", "qwen/qwen3.8-max-prime"],
+)
+def test_refusal_pattern_leaves_the_curated_judges_alone(accepted):
+    assert not ov.REFUSED_MODEL_PAT.search(accepted)
+
+
 @pytest.mark.parametrize("blank", ["claim", "code"])
 def test_main_rejects_empty_input(tmp_path, blank):
     with pytest.raises(SystemExit) as excinfo:

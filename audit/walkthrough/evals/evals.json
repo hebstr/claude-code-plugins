@@ -142,6 +142,19 @@
         "Response assigns an explicit status label (ACCEPTED, REJECTED, DEFERRED, or NOTED) to each of the 3 findings",
         "Response ends on the wrap-up summary table with one row per finding"
       ]
+    },
+    {
+      "id": 13,
+      "prompt": "/audit:walkthrough --judge anthropic/claude-opus-5\n\nReview report:\n\n### Critical\n\n1. **Unbounded read** — `load_all()` in `store.py` reads the whole table into memory before filtering, so a 10M-row table OOMs the worker.\n\nLet's walk it",
+      "expected_output": "Should refuse the pinned judge as a Claude-family ID, report that refusal as a run-level warning, and fall back to the automatic model selection by family rather than aborting the walkthrough or pinning the ID. The transparency status must not advertise the refused ID as a pinned judge. The finding is Critical, so L2 fires on it when OPENROUTER_API_KEY is set, and the degradation notice blocks first when it is not.",
+      "files": [],
+      "expectations": [
+        "Response refuses `anthropic/claude-opus-5` as a judge, naming the Claude-family ground",
+        "Response reports the refusal as a run-level warning rather than silently ignoring the flag",
+        "Response states that L2 falls back to the automatic model selection",
+        "Response does NOT render a 'judge pinned' transparency label for the refused ID",
+        "Response continues the walkthrough instead of aborting on the refused flag"
+      ]
     }
   ]
 }

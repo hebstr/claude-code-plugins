@@ -32,6 +32,7 @@ from pathlib import Path
 
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MODEL_PAT = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$")
+REFUSED_MODEL_PAT = re.compile(r"^anthropic/|^openrouter/|^[^/]+/[^/]*claude", re.IGNORECASE)
 FENCE_PAT = re.compile(r"^```(?:json)?[ \t]*\n(.*)\n```$", re.DOTALL)
 VERDICTS = ("valid", "invalid")
 TEMPERATURE = 0.2
@@ -226,6 +227,11 @@ def parse_args(argv):
     args = parser.parse_args(argv)
     if not MODEL_PAT.match(args.model):
         parser.error(f"model ID does not match provider/model: {args.model!r}")
+    if REFUSED_MODEL_PAT.search(args.model):
+        parser.error(
+            "model ID is a Claude-family or router ID, which cannot serve as "
+            f"cross-model evidence: {args.model!r}"
+        )
     texts = {}
     for name in ("claim_file", "code_file"):
         try:

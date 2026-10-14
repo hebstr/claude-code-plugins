@@ -19,7 +19,7 @@ Extract from the user's request:
 - **batch**: `--batch` / `--no-batch` override (optional)
 - **auto**: `--auto` flag (optional, opt-in, no `--no-auto`: its absence is the default per-point wait of Step 2e)
 
-Adversarial cross-provider validation (L2) runs whenever `OPENROUTER_API_KEY` is set: no flag to parse.
+Adversarial cross-provider validation (L2) runs whenever `OPENROUTER_API_KEY` is set, and its one flag, `--judge <id>`, is not yours to parse: leave it in place without erroring on it, the walkthrough consuming it at Step 1 in every mode, where `agents/cross-model-bridge.md` ("Detection") validates it.
 Which findings it fires on is stated in one place only, the "Level 2: Cross-provider" triggers of `agents/cross-model-bridge.md`, the severity trigger being exempted on the `agreed` bucket and forced on `claude-only`, so a summary that names severities alone is wrong in both directions.
 
 ## Reviewer selection

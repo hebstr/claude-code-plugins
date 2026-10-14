@@ -9,7 +9,9 @@ description: >
   Three modes: **orchestrator mode** (provide a target + optional `--reviewer` flag: detects deployment context, calibrates severity, launches the reviewer, then walks through its report), **walkthrough-only mode** (processes an existing report from the conversation), and **revisit-deferred mode** (processes the project's `DEFERRED.md` backlog as the input source).
   Parses review findings and processes each one at a time: re-evaluates validity, proposes and applies fixes, checks impacted files for regressions, and waits for user approval before moving on unless `--auto` is passed.
 
-  Usage: `/audit:walkthrough [target] [--reviewer name] [--batch|--no-batch] [--auto] [--revisit-deferred]`
+  Usage: `/audit:walkthrough [target] [--reviewer name] [--judge model-id] [--batch|--no-batch] [--auto] [--revisit-deferred]`
+
+  `--judge` pins the external model of the cross-provider L2 calls to one OpenRouter ID for the whole pass, in any of the three modes; omitted, the automatic selection by family applies, which is what every pass did before the flag existed.
 
   Orchestrator mode: provide a target (file, directory, or glob).
   The set of available reviewers is discovered at runtime by scanning installed Claude Code skills, no hardcoded list.
@@ -51,6 +53,7 @@ The input source is the project's `DEFERRED.md` rather than a fresh review or a 
   Preserve the entire original row (including any extra user-managed columns and the original `Date`) for two consumers: Step 4a rewrites the table from it without losing data, and Step 2a opens each point on the row's reason and date.
 - **Flag compatibility.** `--reviewer` and a positional target are both incompatible with `--revisit-deferred`: if either is present, error out and exit with a one-line explanation.
   `--batch` / `--no-batch` remain valid and apply as usual at Step 1b, and `--auto` remains valid and applies as usual in the Step 2 loop.
+  `--judge` remains valid too: this mode reaches L2 on an L1 divergence or an L1 failure, the two triggers a backlog of untiered rows can still fire.
 - **Skip the rest of Step 0.** No reviewer launch, no calibration injection into a reviewer prompt there is none of, no working-tree pre-check (deferred items routinely reference files modified since they were logged; a dirty tree is the normal case).
   Prior calibration is still **loaded** here, which is a different act from injecting it: run the **Load target project memories** procedure of `agents/orchestrator.md` against the project root this mode has just resolved to locate `DEFERRED.md`, so that Step 2b's per-finding check has rules to check against, as it does in the other two modes.
   At Step 1, skip the conversation scan and the blindspot detection (DEFERRED.md is not a blindspot report) and feed the parsed rows directly as the finding list.
@@ -106,6 +109,7 @@ A reviewer that ran to completion and reported zero findings is neither of them 
    Re-invoke `/audit:walkthrough` without a target to enter walkthrough-only mode: Step 1's scan will find the report.
 
 If no target was provided (walkthrough-only mode), parse `--batch`/`--no-batch` and `--auto` from the user's invocation and skip directly to Step 1.
+`--judge` is not parsed per mode: Step 1 reads it from the invocation in all three, the orchestrator leaving it untouched, since no Step 0 branch consumes a model that only Step 2b calls.
 `--auto` is opt-in and has no inverse: its absence is the default behaviour Step 2e describes, so there is no `--no-auto` to parse in any mode.
 
 **Working tree pre-check (informational, non-blocking).** Before Step 1, run `git status --porcelain` once.
@@ -193,8 +197,9 @@ Before processing the first finding, report a brief capabilities status block so
   Two components, in order:
   1. **L2 label**: always shown, even when everything is normal.
      It resolves on `l2_available` alone (exact strings: never invent intermediates):
-     - `l2_available: true` → "L2 enabled".
-     - `l2_available: false` → "L2 unavailable (no OPENROUTER_API_KEY)".
+     - `l2_available: true` → "L2 enabled", or "L2 enabled (judge pinned: <id>)" when a `--judge` ID passed the bridge's validation.
+     - `l2_available: false` → "L2 unavailable (no OPENROUTER_API_KEY)", a `--judge` ID changing nothing: the run makes no L2 call to pin.
+     - A refused `--judge` ID appears in the anomalies block below and never in this label.
   2. **Anomalies block**: render every entry from `anomalies[]` verbatim on its own line, in the order returned, with severity prefix: `info` → no prefix, `warn` → `⚠`, `error` → `✗`.
      Never drop, dedupe, rephrase, or summarize.
      This is the "no silent fallback" guarantee.
@@ -540,7 +545,7 @@ run L2 severity trigger inert: this report's tiers (Important, minor) hold none 
 A column looks like the obvious place and is the wrong one: an anomaly is rendered verbatim and is free to contain the `|` that Step 4a escapes last precisely because it ends a table cell.
 The list keeps the string intact while still reading beside its row, and nothing renders here when no anomaly was emitted.
 
-**This list is the walkthrough's to order, not the bridge's**, which returned at Step 1 and never saw most of what the list holds: run-level lines first, keyed `run` instead of a number (the bridge's once-per-walkthrough anomalies, five as written, each already printed inline where it was produced), then by finding `#` ascending, then within one finding by severity (`error`, then `warn`, then `info`), then in the order the anomalies were emitted, which is what breaks a tie between two of the same severity.
+**This list is the walkthrough's to order, not the bridge's**, which returned at Step 1 and never saw most of what the list holds: run-level lines first, keyed `run` instead of a number (the bridge's once-per-walkthrough anomalies, six as written, each already printed inline where it was produced), then by finding `#` ascending, then within one finding by severity (`error`, then `warn`, then `info`), then in the order the anomalies were emitted, which is what breaks a tie between two of the same severity.
 It holds every per-finding anomaly whatever produced it, the bridge's three Step 2b strings and its generation-check ones alongside the calibration-rejection `warn` this skill writes itself at Step 2b.
 The bridge's own severity-first/source rule governs the Step 1 block alone.
 
@@ -716,5 +721,6 @@ It handles Agent spawning (L1) and the OpenRouter verdict script (L2).
 Present all bridge results inline as described in the mechanism transparency format (Step 2b).
 Runtime errors are caught by the bridge: never let an L1 or L2 failure block the walkthrough.
 
-**Model selection (L2).** The bridge picks one external model per finding from the curated table in `../blindspot/agents/cross-model-judge.md`, by family rather than by ID; its "Model selection" section carries the rule and this file does not restate it.
+**Model selection (L2).** An accepted `--judge <id>` pins every L2 call of the pass to that ID; absent the flag, or on a refusal, the bridge picks one external model per finding from the curated table in `../blindspot/agents/cross-model-judge.md`, by family rather than by ID.
+Its "Detection" section carries the flag's validation and its three refusals, its "Model selection" section the automatic rule, and this file restates neither.
 The model that actually answered (`served_model`) is reported on each finding's L2 line and in the Step 3 Mechanisms block, with the call's OpenRouter generation ID; Step 3 checks every ID against OpenRouter's generation record through `scripts/openrouter-generation.py` and marks unproven verdicts `unverified`.

@@ -1,6 +1,6 @@
 ---
 name: walkthrough-cross-model-bridge
-description: Centralizes the cross-model verification of the review walkthrough. Sections, in file order: the OpenRouter key check at Step 1, the anomaly return shape with its ordering and its run-level class, the Step 2b validation holding both layers (L1 intra-family by an Agent with its failure handling, L2 cross-provider through OpenRouter with its model selection and call block), the blindspot bucket routing laid on top of the severity triggers, the check of the generation IDs at Step 3, and the per-step error policy.
+description: Centralizes the cross-model verification of the review walkthrough. Sections, in file order: the OpenRouter key check and the `--judge` validation at Step 1, the anomaly return shape with its ordering and its run-level class, the Step 2b validation holding both layers (L1 intra-family by an Agent with its failure handling, L2 cross-provider through OpenRouter with its model selection and call block), the blindspot bucket routing laid on top of the severity triggers, the check of the generation IDs at Step 3, and the per-step error policy.
 ---
 
 # Review Walkthrough: Cross-Model Bridge
@@ -24,6 +24,14 @@ It prints a label and never the value, which a `${VAR:-fallback}` form would put
 `orchestrator.md` ("Circularity check") and `../blindspot/SKILL.md` ("Detect OpenRouter availability") run the same line for the same reason, and the three sites are to stay identical.
 L1 needs nothing checked: it spawns an `Agent`, which the harness always provides.
 
+**`--judge` validation.** When the parent passes `--judge <id>`, that ID replaces the whole of "Model selection" below for every L2 call of the walkthrough, and no row of the judge table is read.
+The value comes from the user rather than from a curated table, so it is validated here, and here rather than at the first L2 call because the Step 1 transparency label below reports the accepted ID and renders before Step 2b.
+Run it after the parent's blindspot input detection and before that label: the third refusal needs the external model carried from `SKILL.md` Step 1, which only that detection resolves.
+Refuse an ID on any of three grounds: it does not match `^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$`; its provider segment is `anthropic`, its model segment contains `claude` (case-insensitive) or its provider segment is `openrouter`, a router naming no concrete model, the three classes `../blindspot/SKILL.md` refuses in its own custom-ID flow; or it is the external model of a blindspot input's `### Cross-Model Findings (<model>)` header, which is the one model "Model selection" below exists to route L2 away from.
+On a refusal, fall back to that section's automatic selection and emit the run-level `warn` anomaly `--judge <id> refused (<reason>); L2 fell back to the automatic model selection.`, where `<reason>` is `malformed ID`, `Claude-family or router ID` or `same model as the Phase 1 judge`.
+Refuse and fall back rather than abort the walkthrough, whose subject is the findings and not the judge: `scripts/openrouter-verdict.py` carries the format and family refusals itself, so an ID this check let through would exit 2 on every L2 call instead of degrading once, and the fallback is the behaviour of a run that passed no flag at all.
+The equality of the third ground is the exact ID, the two sides being catalogue slugs and not permaslugs; a flag naming the same model under a different slug passes, which costs the pass the independence the ground protects and is the residual gap of this check.
+
 ### Return shape
 
 ```yaml
@@ -36,7 +44,7 @@ L1 needs nothing checked: it spawns an `Agent`, which the harness always provide
 }
 ```
 
-Detection itself emits no anomaly: a missing key is not a malfunction but a degradation the parent gates on explicitly (SKILL.md, "Adversarial degradation notice").
+Detection emits one anomaly at most, the refused-`--judge` `warn` of its validation above: a missing key is not a malfunction but a degradation the parent gates on explicitly (SKILL.md, "Adversarial degradation notice"), where an ID the user typed and this file then declines to honour is one, and no later step would be in a position to report it.
 The array is there because every later section accumulates into the same list, and the parent renders the version it holds verbatim, in the order specified below.
 No deduplication, no rephrasing, no silent skip: that is the "no silent fallback" contract.
 
@@ -45,10 +53,10 @@ No deduplication, no rephrasing, no silent skip: that is the "no silent fallback
 1. By severity: all `error` first, then all `warn`, then all `info`.
 2. Within each severity, in the order the entries were appended.
 
-Detection returns an empty array today, by its own declaration above, so this rule bites only on a later version that gives it an entry.
+Detection returns one entry at most, by its own declaration above, so this rule can never reorder what it returns and bites only on a later version that gives it a second.
 
-**Run-level anomalies.** Some strings of this file state a fact about the run rather than about a finding, five as written: the alternate-model `warn` of the selection table below, the inert-severity `info` of "Level 2: Cross-provider", the L2 circuit-breaker `warn` of its exit-1 branch, and the two fallback `warn`s of its "Model selection", one for a missing `menu default` marker and one for a family missing from the judge table.
-Each is emitted by the step that evaluates it and never by Detection, which receives neither the main-model family, nor the report's tiers, nor any call's outcome.
+**Run-level anomalies.** Some strings of this file state a fact about the run rather than about a finding, six as written: the refused-`--judge` `warn` of "Detection" above, the alternate-model `warn` of the selection table below, the inert-severity `info` of "Level 2: Cross-provider", the L2 circuit-breaker `warn` of its exit-1 branch, and the two fallback `warn`s of its "Model selection", one for a missing `menu default` marker and one for a family missing from the judge table.
+Each is emitted by the step that evaluates it: the refused-`--judge` one by Detection, the only step holding the flag and the Phase 1 model, and the five others by their own steps, Detection receiving neither the main-model family, nor the report's tiers, nor any call's outcome.
 Each is emitted at most once per walkthrough, an explicit exception to the no-deduplication rule above: that rule forbids dropping a distinct entry, it does not require one session-level fact to be repeated on every Important+ finding.
 Each renders twice, inline the first time it is produced and again in the wrap-up anomaly list of `SKILL.md` Step 3, on a line keyed `run` instead of a finding number; without that key they render nowhere, the Step 1 block having already printed and the per-finding list being keyed by `#`.
 The `Agent (<alternate>)` line is no substitute for the family warn: the selection table's last row spawns `sonnet` too, so that line reads `Agent (sonnet)` whether the family was parsed or not.
@@ -59,8 +67,9 @@ A rule written here would claim a list this file cannot see the whole of.
 
 Render rules for the parent (also restated in SKILL.md):
 - The L2 label resolves on `l2_available` alone (exact strings: never invent intermediates):
-- `l2_available: true` → "L2 enabled".
-- `l2_available: false` → "L2 unavailable (no OPENROUTER_API_KEY)".
+- `l2_available: true` → "L2 enabled", and "L2 enabled (judge pinned: <id>)" when a `--judge` ID passed the validation above, the suffix being the one case where the label carries more than that boolean.
+- `l2_available: false` → "L2 unavailable (no OPENROUTER_API_KEY)", whether a `--judge` ID was passed or not: the flag picks a model for calls this run will not make, and the degradation notice the parent then blocks on is what the user has to read.
+- A refused `--judge` ID never reaches either label: its own run-level anomaly reports it, and the label would otherwise state a pin the run is not honouring.
 - Anomaly severity prefix: `info` → no prefix, `warn` → `⚠`, `error` → `✗`.
 
 ## Cross-model validation (Step 2b)
@@ -135,7 +144,8 @@ Requires `OPENROUTER_API_KEY`.
 
 L2 asks one non-Claude model, through OpenRouter, whether the finding holds, using `scripts/openrouter-verdict.py`.
 
-**Model selection.** One external model per finding, taken from the curated table in `../blindspot/agents/cross-model-judge.md`, by family rather than by ID:
+**Model selection.** An accepted `--judge` ID is the model for every L2 call of the walkthrough and short-circuits this whole section, table included; "Detection" above holds its validation and its three refusals, each of which falls back to the rules below.
+Absent that flag, one external model per finding, taken from the curated table in `../blindspot/agents/cross-model-judge.md`, by family rather than by ID:
 - the table's OpenAI entry by default;
 - its Google entry marked `menu default` instead, when the input came from `blindspot` and the external model carried from SKILL.md Step 1 (parsed from the report's `### Cross-Model Findings (<model>)` header) is itself an `openai/` model.
 The marker, not the row's position, is what names it: the table held two Google rows until 2026-10-14 and carries one since, and this rule has to survive either shape.
