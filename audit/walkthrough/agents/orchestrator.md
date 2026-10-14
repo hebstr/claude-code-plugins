@@ -194,14 +194,19 @@ Key absence never pre-empts the suggestion, the fallback keeping a value of its 
 ## Detect deployment context
 
 Determine the deployment context to calibrate review severity.
-This procedure is shared: the walkthrough skill's Step 1b invokes the same steps when batch triage activates in a mode that never ran this file, against the project root that mode resolved, and skips step 4 when no root resolved.
+This procedure is shared: the walkthrough skill's Step 1b invokes the same steps when batch triage activates in a mode that never ran this file, against the project root that mode resolved, and skips steps 1 and 4 when no root resolved.
 Check in order:
 
-1. **Path heuristics** (target's resolved absolute path):
-   - `~/.local/bin/`, `~/bin/`, `~/scripts/`, `~/dotfiles/`, or any path under the user's home not inside a project with CI config → `personal`
-   - Project root contains `.internal` marker or a project memory tags it as internal → `internal`
+1. **Memory check**: look for a `project_deployment_context.md` file in the memory dir that **Load target project memories** below resolves, and use the level it records.
+   It comes first because the two steps under it infer a level where this one reads the one the user already gave, and because placing it third made it unreachable: the path heuristic resolves every project under `$HOME` that has no CI config, and the CI classification catches every one that has it, so nothing ever arrived at a memory check sitting below them.
+   Measured 2026-10-14: no such file existed in this machine's store after every pass this skill had run, which is what that dead ordering looks like from the outside.
+   Skip this step, with step 4, when no project root resolved, the store being keyed to one.
 
-2. **CI classification** (if `.github/workflows/`, `.gitlab-ci.yml`, or `Jenkinsfile` exists):
+2. **Path heuristics** (target's resolved absolute path):
+   - `~/.local/bin/`, `~/bin/`, `~/scripts/`, `~/dotfiles/`, or any path under the user's home not inside a project with CI config → `personal`
+   - Project root contains an `.internal` marker → `internal`
+
+3. **CI classification** (if `.github/workflows/`, `.gitlab-ci.yml`, or `Jenkinsfile` exists):
 
    Split CI signals into two categories:
 
@@ -212,11 +217,8 @@ Check in order:
    If **any** CI deploy signal is found → `production`.
    If CI exists but **only** quality signals → `internal`.
 
-3. **Memory check**: look for `project_deployment_context.md` memory file.
-   If found, use it.
-
 4. **Fallback**: ask the user: "Is this personal tooling, internal team tooling, or production code?"
-   Persist the answer in a `project_deployment_context.md` memory file.
+   Persist the answer as `project_deployment_context.md` in the same memory dir step 1 reads, which is what makes step 1 reachable on the next pass.
 
 ## Load target project memories
 
@@ -340,12 +342,15 @@ Once the reviewer's report has arrived, emit the following structured block **ex
 --- ORCHESTRATOR COMPLETE ---
 context: <level> (<detection method>)
 reviewer: <reviewer name>
-calibrated: <yes|no>
+calibrated: <yes|prior-only|none>
 prior calibration: <the step 6 line of "Load target project memories">
 batch: <--batch|--no-batch|none>
 auto: <--auto|none>
 --- PROCEED TO STEP 1 ---
 ```
+
+`calibrated` takes three values because the injection rules above produce three outcomes, and a `yes|no` field collapsed two of them into one answer: `yes` when a `code` reviewer received a context template, `prior-only` when a `code` reviewer in a `production` context received the prior-calibration block and no template, and `none` when the reviewer's category is `skill-tool` or `unknown` and nothing was injected at all.
+That third value is also what tells Step 1 the reviewer's category was not `code`, which is the one fact it needs from the category and the reason this block carries no `category` field: the two run in the same context, so a field would restate what the value above already settles.
 
 Do not copy the reviewer's report after the block.
 It reached this context when the Agent completed, and this file runs in the walkthrough's own context rather than across a boundary, so a second copy of a report capped at 25 findings duplicates the largest thing in the transcript to tell Step 1 what it can already read where it is.

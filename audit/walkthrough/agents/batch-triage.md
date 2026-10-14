@@ -21,6 +21,8 @@ From the parent skill:
 
 For each finding, read the relevant code first and form your own quick assessment (1-2 sentences) before comparing it to the reviewer's claim, same anti-confirmation-bias discipline as SKILL.md Step 2b.
 Do **not** apply the author's defense, it is reserved for the manual walkthrough.
+SKILL.md Step 2a's citation reconciliation is inherited as well, and it bites harder here than the discipline above: locate the code by the symbol, function or quoted text the finding names and require the described behaviour to match, because an auto-fix lands an edit that no one reads before it is written.
+Two whitelist patterns are wrong on a name match alone, a typo repeated verbatim at several sites and a dead-code removal resting on the reviewer's claim about reachability, so a finding whose citation does not reconcile goes to Manual instead of to a fix.
 
 Classify each finding into one bucket:
 
@@ -38,7 +40,7 @@ Report the unresolved context in the batch summary, so a rejection the context w
 
 **Important+ findings always go to Manual**, regardless of how obvious the fix seems.
 "Important+" matches the same tier set used by SKILL.md Step 2b for the author's defense: any tier whose name signals a required or blocking change, case-insensitive (Important, Required, Blocking, Critical, Major, High).
-Tiers signalling optional, cosmetic, or informational intent (Minor, Suggestion, Nit, Info, Style) remain eligible for auto-fix or auto-reject.
+Tiers signalling optional, cosmetic, or informational intent (Minor, Suggestion, Nit, Info, Style, Low) remain eligible for auto-fix or auto-reject.
 When a tier name is ambiguous, err toward Manual.
 
 **Blindspot bucket override.** When findings carry a blindspot bucket tag (i.e., the input came from `blindspot`), apply this rule **before** the auto-fix whitelist:
@@ -103,12 +105,8 @@ After all auto-fix operations, check if any fix modified a dependency manifest (
 Running them on behalf of the user without their explicit consent is a supply-chain attack vector, even when the modification was a removal.
 Instead, **print the exact command(s) the user should run manually**, with a one-line warning, and continue.
 
-  | File modified                 | Command for the user to run                                              |
-  | ----------------------------- | ------------------------------------------------------------------------ |
-  | `pyproject.toml` (deps)       | `uv lock` (if uv.lock exists) or `pip-compile`                           |
-  | `package.json` (deps)         | `npm install` or `yarn install` or `pnpm install` (detect from lockfile) |
-  | `Cargo.toml` (deps)           | `cargo update`                                                           |
-  | `renv.lock` / DESCRIPTION (R) | `Rscript -e 'renv::snapshot()'`                                          |
+The commands by manifest are the ones `SKILL.md` Step 2d lists, and this step does not repeat them: one copy, cited, the two having already diverged on this trigger's scope and on the condition for `uv lock` before they were merged there.
+`SKILL.md` is in context whenever this file is, both being read into the walkthrough's own main context, so the citation resolves wherever this step runs.
 
 Format the printout as a single block at the end of the batch summary:
 

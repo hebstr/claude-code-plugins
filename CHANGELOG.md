@@ -26,6 +26,8 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: every OpenRouter call reports its generation ID, checked against OpenRouter's own record.
   An unproven call is reported as unverified and feeds no convergence analysis.
 - `audit`: a cross-provider check is forced before the walkthrough discards a finding a non-Claude model raised, where only a `claude-only` finding forced one before an accept.
+  Discarding covers closing an Important+ finding as NOTED, not only rejecting it or lowering its severity.
+- `audit`: `walkthrough`'s description states what the command writes without asking, fixes to the working tree, `DEFERRED.md` and a lasting calibration rule, and that a missing `OPENROUTER_API_KEY` opens the run on a blocking accept-or-abort prompt, where it narrated its own workflow instead.
 - `workflow`: `sync` converts a drifted line-number reference to a name instead of renumbering it, and lists files through `git ls-files` in a git repository, so gitignored build output stays out of the dependency map.
 
 ### Removed
@@ -36,6 +38,11 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 
 ### Fixed
 
+- `audit`: `walkthrough`'s deployment-context detection resolved on a path heuristic or a CI signal for every path under the home directory, so the level recorded in memory was never read and the question was never asked; the memory check now runs before both.
+- `audit`: `walkthrough` derived the `DEFERRED.md` path from the working directory, so a report about one repository walked from inside another wrote its deferrals into the wrong one.
+- `audit`: `walkthrough` split a `DEFERRED.md` row on every `|`, the ones its own sanitization escapes included, so a finding whose text held a pipe shifted every later column of its row on revisit; it also unescaped the whole of CommonMark's punctuation class where it escapes nine characters, corrupting a hand-written cell.
+- `audit`: `walkthrough` printed `renv::snapshot()` as the lock command for any R target, wrong for an `rv` project, and carried the manifest table in two copies that had drifted apart on the trigger's scope and on the `uv lock` condition.
+- `audit`: `walkthrough` left a backlog row in place when a revisit found its finding already resolved, that outcome carrying no verdict for the rewrite to act on.
 - `audit`: `walkthrough`'s Step 4a rewrote `DEFERRED.md` from the rows it had re-judged, so a walkthrough abandoned partway deleted every row it had not reached.
 - `audit`: `blindspot` accepted a Claude-family or router ID as its external judge, so a same-family audit was reported as cross-model evidence.
 - `audit`: `blindspot`'s judge and `walkthrough`'s L2 call embedded their target in a shell heredoc, so a target line equal to the delimiter ran as a command; both now write a file and pass its path.
