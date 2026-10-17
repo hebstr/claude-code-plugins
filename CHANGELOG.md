@@ -59,6 +59,7 @@ Releases cover the marketplace as a whole; both plugins ship together under the 
 - `audit`: the generation check reported `model_mismatch` on a real call whenever OpenRouter's record expanded a date the requested slug already carried.
 - `audit`: `blindspot`'s path-overlap axis duplicated the model-family axis, so every Claude-authored target read "Strong circularity" and "Structural circularity" was unreachable.
 - `audit`: prior calibration was read from a single derived path, so a subdirectory target, a relocated memory directory or a store kept outside it all ran uncalibrated without notice, while a shared store injected the rules of unrelated projects.
+- `audit`: `walkthrough` launched its reviewer by name, which no skill setting `disable-model-invocation: true` can be loaded by, so `--reviewer` reached none of this marketplace's own reviewers; it now passes the `SKILL.md` path the scan already returns, as `blindspot` does.
 
 ## [0.1.1] - 2026-06-03
 

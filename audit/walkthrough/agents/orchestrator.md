@@ -58,7 +58,7 @@ Never read an empty stdout as zero candidates: say the scan did not run, quote t
 If valid, use it as-is and skip steps 3 and 4.
 A bare suffix matching several candidates names none of them: list those candidates alone, ask for the choice again by full `plugin:skill` name, and do not skip steps 3 and 4 on a guess.
 Two plugins each shipping a skill directory of the same basename is all it takes, the scan deduplicating on the full name and never on the suffix.
-Nothing downstream resolves the ambiguity either: the name is handed to the Agent as `You are running the <reviewer> skill`, which settles it silently and out of sight.
+Nothing downstream resolves the ambiguity either: the Agent is handed one candidate's `path`, so a guess made here settles the choice silently and out of sight.
 If it is absent from the list but resolves to a readable `SKILL.md`, as a filesystem path to an existing `SKILL.md` or to a directory holding one, or as `<plugin>:<skill>` found under an install path in `~/.claude/plugins/installed_plugins.json` or at `~/.claude/skills/<skill>/SKILL.md`, accept it, warn in one line that the scan did not surface it, and skip steps 3 and 4.
 The scan gates on the bare skill name against `review`, `adversary`, `audit`, `critic` and `sweep`, so a reviewer carrying none of them is missed and this path is the only way to reach it.
 Otherwise, list the scanned candidates back to the user and ask them to pick one.
@@ -298,13 +298,17 @@ Build the Agent prompt as follows:
 
 [prior calibration block, if found — prefix with "Prior review calibration for this project (from previous sessions):"]
 
-You are running the <reviewer> skill. Review: <target>
+Read the reviewer skill at <reviewer-path> and execute its procedure on: <target>
 
 IMPORTANT — output format: return ONLY the structured findings report. Do not include your intermediate reasoning, file contents you read, or tool call results. Each finding must include: severity tier, file(s) and line(s), description, and suggested fix. Keep each finding to one short paragraph. Maximum 25 findings — if more exist, keep the 25 highest-severity ones and note how many were omitted. Do NOT report findings that contradict the prior calibration rules above — those patterns have been explicitly validated by the project author. That exemption stops at security, data integrity, correctness and privacy: report a finding in one of those four categories even when a calibration rule appears to cover it, naming the rule you considered, and let the walkthrough adjudicate it. You cannot reach the user: `AskUserQuestion` is withheld from every subagent, so a step of your reviewer skill that would ask a question proceeds on a stated assumption and reports it rather than blocking.
 ```
 
 Substitute `<target>` with the path already resolved to an absolute one, in both templates, which keeps a reviewer on its path-first branch and away from any name-resolution step of its own.
 Both properties are the ones `../blindspot/SKILL.md` states for its own Phase 1 reviewer launch, and the second bites hardest on a reviewer built around an interactive walkthrough, `posit-dev:critical-code-reviewer` among the scanned candidates.
+
+Substitute `<reviewer-path>` with the chosen candidate's `path` from the scan, or, for a reviewer accepted by the escape hatch of Step 2, with the `SKILL.md` that step resolved.
+Naming the skill instead of its path reaches nothing: `disable-model-invocation: true` removes a skill from the listing the model sees, so the Skill tool refuses the name, and every skill of this marketplace carries the flag.
+Reading a `SKILL.md` is not the harness loading it, which is why the prompt says to execute the procedure rather than to run the skill; `../blindspot/SKILL.md` states the same caveat ahead of the two properties above, as the premise they rest on.
 
 The four categories are the ones Step 4b of `SKILL.md` refuses to write a calibration rule for, and Step 2b refuses to reject a finding on.
 This line is the same rule at the upstream end: a rule suppressing a finding here leaves no verdict, no cross-model check and no line the user can read, where a rejection downstream at least leaves all three.
@@ -320,7 +324,7 @@ If the Agent ran in the foreground instead (the report is already the tool resul
 For skill/tool reviewers (no calibration):
 
 ```
-You are running the <reviewer> skill. Review: <target>
+Read the reviewer skill at <reviewer-path> and execute its procedure on: <target>
 
 [same output format instructions as above]
 ```
